@@ -5,28 +5,38 @@ from sklearn.compose import ColumnTransformer
 from sklearn.metrics.pairwise import cosine_similarity
 
 st.set_page_config(
-    page_title="E-Commerce Product Recommendation",
+    page_title="E-Commerce Recommendation",
     page_icon="🛒",
     layout="wide"
 )
 
 st.title("🛒 E-Commerce Product Recommendation System")
-st.write("Recommendation based on product ratings, review sentiment, price, customer behavior and product attributes.")
+st.write(
+    "Recommendation based on product ratings, review sentiment, "
+    "price, customer behavior and product attributes."
+)
 
-# ---------------- LOAD DATA ----------------
+# --------------------------------------------------
+# DATASET
+# --------------------------------------------------
 
-file = st.file_uploader("Upload the CSV dataset", type="csv")
+file = st.file_uploader(
+    "Upload the CSV dataset",
+    type="csv"
+)
 
 if file is None:
-    st.info("Upload content_based_recommendation_dataset.csv")
+    st.info("Upload the dataset to continue.")
     st.stop()
 
 df = pd.read_csv(file)
 
-# Give every row a product ID
+# Product ID
 df["Product ID"] = range(1, len(df) + 1)
 
-# ---------------- FEATURES ----------------
+# --------------------------------------------------
+# FEATURES
+# --------------------------------------------------
 
 numeric_features = [
     "Number of clicks on similar products",
@@ -46,28 +56,34 @@ categorical_features = [
     "Geographical locations"
 ]
 
-# Remove missing values
 df[numeric_features] = df[numeric_features].fillna(0)
 df[categorical_features] = df[categorical_features].fillna("Unknown")
 
-# ---------------- PREPROCESSING ----------------
+# --------------------------------------------------
+# PREPROCESSING
+# --------------------------------------------------
 
 preprocessor = ColumnTransformer([
-    ("num", StandardScaler(), numeric_features),
-    ("cat", OneHotEncoder(handle_unknown="ignore"), categorical_features)
+    ("numeric", StandardScaler(), numeric_features),
+    ("categorical", OneHotEncoder(handle_unknown="ignore"),
+     categorical_features)
 ])
 
 features = preprocessor.fit_transform(
     df[numeric_features + categorical_features]
 )
 
-# ---------------- SIMILARITY ----------------
+# --------------------------------------------------
+# SIMILARITY
+# --------------------------------------------------
 
 similarity_matrix = cosine_similarity(features)
 
-# ---------------- PRODUCT SELECTION ----------------
+# --------------------------------------------------
+# PRODUCT SELECTION
+# --------------------------------------------------
 
-st.subheader("Select a Product")
+st.header("🔍 Select a Product")
 
 selected_id = st.selectbox(
     "Choose Product ID",
@@ -78,9 +94,11 @@ selected_index = df.index[
     df["Product ID"] == selected_id
 ][0]
 
-# ---------------- PRODUCT DETAILS ----------------
-
 product = df.loc[selected_index]
+
+# --------------------------------------------------
+# PRODUCT DETAILS
+# --------------------------------------------------
 
 c1, c2, c3, c4 = st.columns(4)
 
@@ -104,7 +122,9 @@ c4.metric(
     f"{product['Customer review sentiment score (overall)']:.2f}"
 )
 
-# ---------------- RECOMMENDATIONS ----------------
+# --------------------------------------------------
+# RECOMMENDATIONS
+# --------------------------------------------------
 
 similarities = similarity_matrix[selected_index]
 
@@ -113,30 +133,48 @@ recommendations = pd.DataFrame({
     "Similarity": similarities
 })
 
-# Remove selected product
 recommendations = recommendations[
     recommendations["Product ID"] != selected_id
 ]
 
-# Top 5
 recommendations = recommendations.sort_values(
     "Similarity",
     ascending=False
 ).head(5)
 
-# Add product information
 recommendations = recommendations.merge(
     df,
     on="Product ID"
 )
 
+# Product quality score
+recommendations["Product Score"] = (
+    (recommendations["Rating of the product"] / 5) * 0.5
+    +
+    (
+        (recommendations[
+            "Customer review sentiment score (overall)"
+        ] + 1) / 2
+    ) * 0.5
+)
+
+# Final recommendation score
 recommendations["Recommendation Score"] = (
-    recommendations["Similarity"] * 100
-).round(2)
+    recommendations["Similarity"] * 0.6
+    +
+    recommendations["Product Score"] * 0.4
+)
 
-# ---------------- DISPLAY ----------------
+recommendations = recommendations.sort_values(
+    "Recommendation Score",
+    ascending=False
+)
 
-st.subheader("⭐ Recommended Products")
+# --------------------------------------------------
+# RECOMMENDATION TABLE
+# --------------------------------------------------
+
+st.header("⭐ Recommended Products")
 
 display = recommendations[[
     "Product ID",
@@ -145,7 +183,7 @@ display = recommendations[[
     "Price of the product",
     "Customer review sentiment score (overall)",
     "Recommendation Score"
-]]
+]].copy()
 
 display.columns = [
     "Product ID",
@@ -153,8 +191,12 @@ display.columns = [
     "Rating",
     "Price",
     "Review Sentiment",
-    "Recommendation Score (%)"
+    "Recommendation Score"
 ]
+
+display["Recommendation Score"] = (
+    display["Recommendation Score"] * 100
+).round(2)
 
 st.dataframe(
     display,
@@ -162,22 +204,104 @@ st.dataframe(
     hide_index=True
 )
 
-# ---------------- REASON ----------------
+# --------------------------------------------------
+# CHART
+# --------------------------------------------------
 
-st.subheader("💡 Recommendation Explanation")
+st.header("📊 Recommendation Score")
+
+chart = display.set_index("Brand")[
+    "Recommendation Score"
+]
+
+st.bar_chart(chart)
+
+# --------------------------------------------------
+# PRODUCT COMPARISON
+# --------------------------------------------------
+
+st.header("📈 Product Comparison")
+
+comparison = recommendations[[
+    "Brand of the product",
+    "Rating of the product",
+    "Customer review sentiment score (overall)",
+    "Price of the product"
+]].copy()
+
+comparison.columns = [
+    "Brand",
+    "Rating",
+    "Review Sentiment",
+    "Price"
+]
+
+st.dataframe(
+    comparison,
+    use_container_width=True,
+    hide_index=True
+)
+
+# --------------------------------------------------
+# RECOMMENDATION EXPLANATION
+# --------------------------------------------------
+
+st.header("💡 Why are these products recommended?")
 
 st.write(
     """
-    Products are recommended using content-based similarity.
-    The system compares product rating, review sentiment,
-    price, brand, customer purchasing behavior, season,
-    holiday and geographical information.
+    The system uses content-based recommendation. Each product is
+    represented using its numerical and categorical characteristics.
+    Cosine similarity is then used to identify products with similar
+    characteristics.
+
+    The final recommendation score combines product similarity
+    with product quality based on rating and customer review
+    sentiment.
     """
 )
 
-# ---------------- DATASET ----------------
+# --------------------------------------------------
+# SIMPLE EVALUATION
+# --------------------------------------------------
+
+st.header("📊 System Evaluation")
+
+average_score = (
+    recommendations["Recommendation Score"].mean() * 100
+)
+
+best_score = (
+    recommendations["Recommendation Score"].max() * 100
+)
+
+c1, c2, c3 = st.columns(3)
+
+c1.metric(
+    "Average Top-5 Score",
+    f"{average_score:.2f}%"
+)
+
+c2.metric(
+    "Best Recommendation",
+    f"{best_score:.2f}%"
+)
+
+c3.metric(
+    "Products Recommended",
+    "5"
+)
+
+# --------------------------------------------------
+# DATASET
+# --------------------------------------------------
 
 with st.expander("View Dataset"):
+
+    st.write(
+        f"Dataset contains {len(df)} products."
+    )
+
     st.dataframe(
         df,
         use_container_width=True,
