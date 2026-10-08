@@ -85,7 +85,7 @@ st.markdown(
 
 
 /* =====================================================
-   METRICS
+   NORMAL METRICS
    ===================================================== */
 
 [data-testid="stMetric"] {
@@ -385,7 +385,7 @@ def extract_product_data(url):
 
 
     # =====================================================
-    # RATING
+    # PRODUCT RATING
     # =====================================================
 
     rating = None
@@ -411,7 +411,10 @@ def extract_product_data(url):
 
             for obj in objects:
 
-                if not isinstance(obj, dict):
+                if not isinstance(
+                    obj,
+                    dict
+                ):
                     continue
 
                 aggregate = obj.get(
@@ -520,7 +523,7 @@ def extract_product_data(url):
 
 
     # =====================================================
-    # BRAND
+    # BRAND DETECTION
     # =====================================================
 
     brand = None
@@ -587,7 +590,7 @@ def extract_product_data(url):
 
 
 # =========================================================
-# FIND RELATED PRODUCTS ON THE SAME PAGE
+# FIND RELATED PRODUCTS ON SAME PAGE
 # =========================================================
 
 def find_related_products(
@@ -639,7 +642,7 @@ def find_related_products(
 
 
     # =====================================================
-    # SEARCH LINKS INSIDE RELATED AREAS
+    # SEARCH RELATED AREAS
     # =====================================================
 
     for container in possible_containers:
@@ -701,7 +704,7 @@ def find_related_products(
 
 
     # =====================================================
-    # GENERAL PRODUCT LINKS FALLBACK
+    # GENERAL PRODUCT LINKS
     # =====================================================
 
     if len(candidates) < 5:
@@ -791,12 +794,9 @@ def find_related_products(
         ] = item
 
 
-    candidates = list(
+    return list(
         unique.values()
-    )
-
-
-    return candidates[:20]
+    )[:20]
 
 
 # =========================================================
@@ -1043,7 +1043,7 @@ def fetch_product_rating(url):
 
 
 # =========================================================
-# GET SIMILAR PRODUCTS
+# SIMILAR PRODUCT RECOMMENDATION
 # =========================================================
 
 def get_similar_products(
@@ -1068,7 +1068,7 @@ def get_similar_products(
 
 
     # =====================================================
-    # FIRST: RELATED PRODUCTS ON PAGE
+    # RELATED PRODUCTS
     # =====================================================
 
     candidates = find_related_products(
@@ -1079,7 +1079,7 @@ def get_similar_products(
 
 
     # =====================================================
-    # SECOND: WEB SEARCH
+    # WEB SEARCH FALLBACK
     # =====================================================
 
     if len(candidates) < 5:
@@ -1115,7 +1115,7 @@ def get_similar_products(
 
 
     # =====================================================
-    # FETCH RATINGS
+    # VERIFY RATINGS
     # =====================================================
 
     final_products = []
@@ -1138,13 +1138,15 @@ def get_similar_products(
         candidate["Rating"] = rating
 
 
-        # Ignore products without a verified rating
+        # Ignore products without rating
 
         if rating is None:
             continue
 
 
-        # Same or higher rating only
+        # =================================================
+        # SAME OR HIGHER RATING
+        # =================================================
 
         if (
             original_rating is not None
@@ -1188,17 +1190,21 @@ def get_similar_products(
         if original_words and candidate_words:
 
             overlap = (
+
                 len(
                     original_words
                     &
                     candidate_words
                 )
+
                 /
+
                 len(
                     original_words
                     |
                     candidate_words
                 )
+
             )
 
         else:
@@ -1212,7 +1218,7 @@ def get_similar_products(
 
 
         # =================================================
-        # FINAL RECOMMENDATION SCORE
+        # RECOMMENDATION SCORE
         # =================================================
 
         candidate[
@@ -1332,7 +1338,7 @@ if analyze_button:
 
 
 # =========================================================
-# DISPLAY PRODUCT RESULTS
+# DISPLAY RESULTS
 # =========================================================
 
 if "product_data" in st.session_state:
@@ -1395,9 +1401,13 @@ if "product_data" in st.session_state:
             "⭐ **Product Rating**"
         )
 
+
         if rating is not None:
 
-            # GREEN: 4.0 OR ABOVE
+
+            # =================================================
+            # GREEN
+            # =================================================
 
             if rating >= 4.0:
 
@@ -1419,7 +1429,9 @@ if "product_data" in st.session_state:
                 )
 
 
-            # YELLOW: 3.0 TO BELOW 4.0
+            # =================================================
+            # YELLOW
+            # =================================================
 
             elif rating >= 3.0:
 
@@ -1441,7 +1453,9 @@ if "product_data" in st.session_state:
                 )
 
 
-            # RED: BELOW 3.0
+            # =================================================
+            # RED
+            # =================================================
 
             else:
 
@@ -1480,7 +1494,7 @@ if "product_data" in st.session_state:
 
 
     # =====================================================
-    # REVIEWS ANALYZED
+    # REVIEWS
     # =====================================================
 
     with c2:
@@ -1508,9 +1522,7 @@ if "product_data" in st.session_state:
     # =====================================================
 
     positive = 0
-
     negative = 0
-
     neutral = 0
 
     sentiment_scores = []
@@ -1602,9 +1614,7 @@ if "product_data" in st.session_state:
     else:
 
         positive_percentage = 0
-
         neutral_percentage = 0
-
         negative_percentage = 0
 
 
@@ -1662,23 +1672,17 @@ if "product_data" in st.session_state:
         chart = pd.DataFrame(
 
             {
-
                 "Reviews": [
-
                     positive,
                     neutral,
                     negative
-
                 ]
-
             },
 
             index=[
-
                 "Positive",
                 "Neutral",
                 "Negative"
-
             ]
 
         )
@@ -1773,6 +1777,13 @@ if "product_data" in st.session_state:
 
     # =====================================================
     # PURCHASE DECISION
+    #
+    # IMPORTANT:
+    # Decision is based directly on PRODUCT RATING.
+    #
+    # 4.0+       = MUST BUY
+    # 3.0-3.9    = CAN BUY
+    # Below 3.0  = DON'T BUY
     # =====================================================
 
     st.markdown(
@@ -1808,31 +1819,93 @@ if "product_data" in st.session_state:
         )
 
 
-    if buy_percentage >= 75:
+    # =====================================================
+    # GREEN - MUST BUY
+    # =====================================================
 
-        st.success(
-            "✅ BUY — Strong rating and "
-            "customer feedback."
+    if rating is not None and rating >= 4.0:
+
+        st.markdown(
+            """
+            <div style="
+                background:#174d3b;
+                border-left:6px solid #35d07f;
+                padding:18px 20px;
+                border-radius:10px;
+                color:#35d07f;
+                font-size:20px;
+                font-weight:800;
+                margin-top:10px;
+            ">
+                🟢 MUST BUY
+            </div>
+            """,
+            unsafe_allow_html=True
         )
 
-    elif buy_percentage >= 55:
 
-        st.warning(
-            "⚠️ MAYBE — Customer feedback is "
-            "mixed or moderate."
+    # =====================================================
+    # YELLOW - CAN BUY
+    # =====================================================
+
+    elif rating is not None and rating >= 3.0:
+
+        st.markdown(
+            """
+            <div style="
+                background:#4a4320;
+                border-left:6px solid #e6cf68;
+                padding:18px 20px;
+                border-radius:10px;
+                color:#e6cf68;
+                font-size:20px;
+                font-weight:800;
+                margin-top:10px;
+            ">
+                🟡 CAN BUY
+            </div>
+            """,
+            unsafe_allow_html=True
         )
+
+
+    # =====================================================
+    # RED - DON'T BUY
+    # =====================================================
+
+    elif rating is not None:
+
+        st.markdown(
+            """
+            <div style="
+                background:#4a2528;
+                border-left:6px solid #ff7773;
+                padding:18px 20px;
+                border-radius:10px;
+                color:#ff7773;
+                font-size:20px;
+                font-weight:800;
+                margin-top:10px;
+            ">
+                🔴 DON'T BUY
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+
 
     else:
 
-        st.error(
-            "❌ NOT RECOMMENDED — Rating or "
-            "customer sentiment is relatively weak."
+        st.warning(
+            "Product rating could not be detected, "
+            "so a purchase decision cannot be determined."
         )
 
 
     st.caption(
-        "Buy Score = 40% Rating + 30% Sentiment + "
-        "15% Review Confidence + 15% Review Risk"
+        "Purchase decision is based on the product rating: "
+        "4.0+ = MUST BUY | 3.0–3.9 = CAN BUY | "
+        "Below 3.0 = DON'T BUY"
     )
 
 
@@ -1861,14 +1934,12 @@ if "product_data" in st.session_state:
 
         st.warning(
             "No related products with verifiable "
-            "ratings could be found from the available "
-            "webpage information."
+            "ratings could be found."
         )
 
         st.info(
-            "This can happen when the shopping website "
-            "loads recommendations dynamically or "
-            "blocks automated access."
+            "The shopping website may load recommendations "
+            "dynamically or block automated access."
         )
 
 
@@ -1916,18 +1987,106 @@ if "product_data" in st.session_state:
 
         best = similar_products[0]
 
+        best_rating = best[
+            "Rating"
+        ]
 
-        st.success(
-            f"🏆 Best Alternative: "
-            f"{best['Product']} "
-            f"— ⭐ {best['Rating']:.1f}/5"
-        )
 
+        # =================================================
+        # GREEN BEST ALTERNATIVE
+        # =================================================
+
+        if best_rating >= 4.0:
+
+            st.markdown(
+                f"""
+                <div style="
+                    background:#174d3b;
+                    border-left:6px solid #35d07f;
+                    padding:18px 20px;
+                    border-radius:10px;
+                    color:#35d07f;
+                    font-size:18px;
+                    font-weight:700;
+                    margin-top:20px;
+                ">
+                    🏆 Best Alternative:
+                    {best['Product']}
+                    — ⭐ {best_rating:.1f}/5
+                    <br>
+                    🟢 MUST BUY
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
+
+
+        # =================================================
+        # YELLOW BEST ALTERNATIVE
+        # =================================================
+
+        elif best_rating >= 3.0:
+
+            st.markdown(
+                f"""
+                <div style="
+                    background:#4a4320;
+                    border-left:6px solid #e6cf68;
+                    padding:18px 20px;
+                    border-radius:10px;
+                    color:#e6cf68;
+                    font-size:18px;
+                    font-weight:700;
+                    margin-top:20px;
+                ">
+                    🏆 Best Alternative:
+                    {best['Product']}
+                    — ⭐ {best_rating:.1f}/5
+                    <br>
+                    🟡 CAN BUY
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
+
+
+        # =================================================
+        # RED BEST ALTERNATIVE
+        # =================================================
+
+        else:
+
+            st.markdown(
+                f"""
+                <div style="
+                    background:#4a2528;
+                    border-left:6px solid #ff7773;
+                    padding:18px 20px;
+                    border-radius:10px;
+                    color:#ff7773;
+                    font-size:18px;
+                    font-weight:700;
+                    margin-top:20px;
+                ">
+                    🏆 Best Alternative:
+                    {best['Product']}
+                    — ⭐ {best_rating:.1f}/5
+                    <br>
+                    🔴 DON'T BUY
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
+
+
+        # =================================================
+        # COMPARE RATING
+        # =================================================
 
         if rating is not None:
 
             difference = (
-                best["Rating"]
+                best_rating
                 -
                 rating
             )
@@ -1949,6 +2108,10 @@ if "product_data" in st.session_state:
                 )
 
 
+        # =================================================
+        # RECOMMENDATION SCORE CHART
+        # =================================================
+
         st.subheader(
             "📊 Recommendation Scores"
         )
@@ -1957,7 +2120,6 @@ if "product_data" in st.session_state:
         chart_data = pd.DataFrame(
 
             {
-
                 "Recommendation Score": [
 
                     p[
@@ -1967,7 +2129,6 @@ if "product_data" in st.session_state:
                     for p in similar_products
 
                 ]
-
             },
 
             index=[
@@ -2032,25 +2193,29 @@ st.markdown(
 
 st.write(
     """
-    This version works completely from the pasted product URL.
+    This system works completely from the pasted product URL.
 
     1. The product webpage is analyzed to extract the product
        name, rating, brand and customer reviews.
 
     2. Customer reviews are analyzed using sentiment analysis.
 
-    3. A Purchase Score is calculated from product rating,
-       review sentiment, review confidence and negative-review risk.
+    3. A Buy Score is calculated using rating, sentiment,
+       review confidence and negative-review risk.
 
-    4. The system searches for related or similar products
-       available from the product page and web search.
+    4. Similar or related products are searched from the
+       product webpage and web search.
 
     5. Product ratings are verified when possible.
 
     6. Products with the same or higher rating are prioritized.
 
-    7. The final recommendation score combines product-title
-       similarity and product rating.
+    7. The purchase decision is classified using the product
+       rating:
+
+       • 4.0–5.0 → MUST BUY
+       • 3.0–3.9 → CAN BUY
+       • Below 3.0 → DON'T BUY
 
     No CSV dataset is required.
     """
