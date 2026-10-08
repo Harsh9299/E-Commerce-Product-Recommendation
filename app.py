@@ -53,12 +53,18 @@ st.markdown(
         border: 1px solid #3a3e43;
     }
 
-    .app-header h1 {
-        margin: 0;
-        font-size: 38px;
-        font-weight: 700;
-        color: #f1f1f1;
-    }
+.app-header h1 {
+    margin: 0;
+    font-size: 32px;
+    font-weight: 900;
+    color: #ffffff;
+    letter-spacing: 0.3px;
+    background: #3a3f45;
+    padding: 10px 16px;
+    border-radius: 8px;
+    display: inline-block;
+    border-left: 4px solid #bfc3c7;
+}
 
     .app-header p {
         margin-top: 8px;
@@ -194,7 +200,9 @@ st.markdown(
     """
     <div class="app-header">
 
-        <h1>🛒 E-Commerce Product Recommendation Using Customer Reviews</h1>
+        <h1>
+            🛒 E-Commerce Product Recommendation Using Customer Reviews
+        </h1>
 
         <p>
             Analyze customer feedback and discover similar
