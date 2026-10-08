@@ -239,8 +239,6 @@ hr {
 
 # =========================================================
 # MAIN PROJECT HEADER
-# IMPORTANT:
-# HTML TAGS MUST START AT THE LEFT SIDE
 # =========================================================
 
 st.markdown(
@@ -254,14 +252,10 @@ st.markdown(
 )
 
 
-# =========================================================
-# INTRODUCTION
-# =========================================================
-
 st.write(
     "The system analyzes product ratings and customer "
     "review sentiment to provide a purchase recommendation "
-    "and identify better-rated alternatives."
+    "and find similar products with the same or higher rating."
 )
 
 
@@ -284,8 +278,7 @@ def analyze_sentiment(text):
     elif score <= -0.05:
         return "Negative", score
 
-    else:
-        return "Neutral", score
+    return "Neutral", score
 
 
 # =========================================================
@@ -298,8 +291,11 @@ def extract_rating(text):
         return None
 
     patterns = [
+
         r"([0-5](?:\.[0-9])?)\s*(?:out of\s*5|/5)",
+
         r"([0-5](?:\.[0-9])?)\s*stars?"
+
     ]
 
     for pattern in patterns:
@@ -326,7 +322,7 @@ def extract_rating(text):
 
 
 # =========================================================
-# EXTRACT PRODUCT BRAND
+# EXTRACT BRAND
 # =========================================================
 
 def extract_brand(title):
@@ -335,6 +331,7 @@ def extract_brand(title):
         return None
 
     known_brands = [
+
         "Nike",
         "Adidas",
         "Puma",
@@ -355,6 +352,7 @@ def extract_brand(title):
         "Max",
         "Roadster",
         "H&M"
+
     ]
 
     title_lower = title.lower()
@@ -374,13 +372,17 @@ def extract_brand(title):
 def extract_product_data(url):
 
     headers = {
+
         "User-Agent": (
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
             "AppleWebKit/537.36 "
             "(KHTML, like Gecko) "
             "Chrome/142.0 Safari/537.36"
         ),
-        "Accept-Language": "en-US,en;q=0.9"
+
+        "Accept-Language":
+            "en-US,en;q=0.9"
+
     }
 
     response = requests.get(
@@ -391,12 +393,10 @@ def extract_product_data(url):
 
     if response.status_code != 200:
 
-        return {
-            "title": None,
-            "rating": None,
-            "brand": None,
-            "reviews": []
-        }
+        raise Exception(
+            f"Website returned status code "
+            f"{response.status_code}"
+        )
 
     soup = BeautifulSoup(
         response.text,
@@ -444,7 +444,7 @@ def extract_product_data(url):
 
 
     # =====================================================
-    # PRODUCT RATING
+    # RATING
     # =====================================================
 
     rating = extract_rating(
@@ -452,7 +452,7 @@ def extract_product_data(url):
     )
 
 
-    # Try structured rating information
+    # Try structured rating
 
     if rating is None:
 
@@ -483,13 +483,25 @@ def extract_product_data(url):
     reviews = []
 
     review_selectors = [
+
+        '[itemprop="reviewBody"]',
+
+        '[class*="review-text"]',
+
+        '[class*="reviewText"]',
+
+        '[class*="review-content"]',
+
+        '[class*="reviewContent"]',
+
+        '[data-hook="review-body"]',
+
         '[class*="review"]',
-        '[class*="Review"]',
-        '[id*="review"]',
-        '[id*="Review"]',
-        '[data-hook*="review"]',
-        '[itemprop="reviewBody"]'
+
+        '[id*="review"]'
+
     ]
+
 
     for selector in review_selectors:
 
@@ -506,7 +518,9 @@ def extract_product_data(url):
 
             if len(text) >= 50:
 
-                reviews.append(text)
+                reviews.append(
+                    text
+                )
 
 
     # Remove duplicates
@@ -518,12 +532,14 @@ def extract_product_data(url):
     )
 
 
-    # Maximum 30 reviews analyzed internally
+    # Analyze maximum 30 reviews
 
     reviews = reviews[:30]
 
 
-    # Extract brand
+    # =====================================================
+    # BRAND
+    # =====================================================
 
     brand = extract_brand(
         title
@@ -531,10 +547,15 @@ def extract_product_data(url):
 
 
     return {
+
         "title": title,
+
         "rating": rating,
+
         "brand": brand,
+
         "reviews": reviews
+
     }
 
 
@@ -561,8 +582,57 @@ uploaded_file = st.sidebar.file_uploader(
 # =========================================================
 
 df = None
+
+preprocessor = None
+
 feature_matrix = None
+
 similarity_matrix = None
+
+
+# =========================================================
+# DATASET FEATURE DEFINITIONS
+# =========================================================
+
+numeric_features = [
+
+    "Number of clicks on similar products",
+
+    "Number of similar products purchased so far",
+
+    "Average rating given to similar products",
+
+    "Median purchasing price (in rupees)",
+
+    "Rating of the product",
+
+    "Customer review sentiment score (overall)",
+
+    "Price of the product"
+
+]
+
+
+categorical_features = [
+
+    "Gender",
+
+    "Brand of the product",
+
+    "Holiday",
+
+    "Season",
+
+    "Geographical locations"
+
+]
+
+
+required_columns = (
+    numeric_features
+    +
+    categorical_features
+)
 
 
 # =========================================================
@@ -581,65 +651,13 @@ if uploaded_file is not None:
             drop=True
         )
 
-
-        # =================================================
-        # PRODUCT ID
-        # =================================================
-
         df["Product ID"] = (
             df.index + 1
         )
 
 
         # =================================================
-        # NUMERICAL FEATURES
-        # =================================================
-
-        numeric_features = [
-
-            "Number of clicks on similar products",
-
-            "Number of similar products purchased so far",
-
-            "Average rating given to similar products",
-
-            "Median purchasing price (in rupees)",
-
-            "Rating of the product",
-
-            "Customer review sentiment score (overall)",
-
-            "Price of the product"
-        ]
-
-
-        # =================================================
-        # CATEGORICAL FEATURES
-        # =================================================
-
-        categorical_features = [
-
-            "Gender",
-
-            "Brand of the product",
-
-            "Holiday",
-
-            "Season",
-
-            "Geographical locations"
-        ]
-
-
-        required_columns = (
-            numeric_features
-            +
-            categorical_features
-        )
-
-
-        # =================================================
-        # CHECK REQUIRED COLUMNS
+        # CHECK COLUMNS
         # =================================================
 
         missing_columns = [
@@ -649,13 +667,14 @@ if uploaded_file is not None:
             for column in required_columns
 
             if column not in df.columns
+
         ]
 
 
         if missing_columns:
 
             st.sidebar.error(
-                "Some required columns are missing."
+                "Required columns are missing."
             )
 
             st.sidebar.write(
@@ -668,32 +687,39 @@ if uploaded_file is not None:
         else:
 
             # =============================================
-            # CLEAN NUMERICAL FEATURES
+            # CLEAN NUMERICAL DATA
             # =============================================
 
             for column in numeric_features:
 
                 df[column] = pd.to_numeric(
+
                     df[column],
+
                     errors="coerce"
+
                 ).fillna(0)
 
 
             # =============================================
-            # CLEAN CATEGORICAL FEATURES
+            # CLEAN CATEGORICAL DATA
             # =============================================
 
             for column in categorical_features:
 
                 df[column] = (
+
                     df[column]
+
                     .fillna("Unknown")
+
                     .astype(str)
+
                 )
 
 
             # =============================================
-            # PREPROCESSING
+            # PREPROCESSOR
             # =============================================
 
             preprocessor = ColumnTransformer(
@@ -701,37 +727,61 @@ if uploaded_file is not None:
                 transformers=[
 
                     (
+
                         "numeric",
+
                         StandardScaler(),
+
                         numeric_features
+
                     ),
 
                     (
+
                         "categorical",
+
                         OneHotEncoder(
                             handle_unknown="ignore"
                         ),
+
                         categorical_features
+
                     )
+
                 ]
-            )
 
-
-            feature_matrix = (
-                preprocessor.fit_transform(
-                    df[required_columns]
-                )
             )
 
 
             # =============================================
-            # COSINE SIMILARITY
+            # DATASET FEATURE MATRIX
+            # =============================================
+
+            feature_matrix = (
+
+                preprocessor.fit_transform(
+
+                    df[
+                        required_columns
+                    ]
+
+                )
+
+            )
+
+
+            # =============================================
+            # NORMAL DATASET SIMILARITY
             # =============================================
 
             similarity_matrix = (
+
                 cosine_similarity(
+
                     feature_matrix
+
                 )
+
             )
 
 
@@ -749,13 +799,14 @@ if uploaded_file is not None:
 # =========================================================
 
 st.markdown(
-    '<div class="section-title">🔗 Analyze a Product</div>',
+    '<div class="section-title">🔗 Analyze a Product URL</div>',
     unsafe_allow_html=True
 )
 
 st.write(
-    "Paste the URL of an actual product page to analyze "
-    "its rating and customer review sentiment."
+    "Paste a product URL. The system will analyze its "
+    "rating and customer reviews, then find similar "
+    "products from your uploaded dataset."
 )
 
 
@@ -766,7 +817,7 @@ product_url = st.text_input(
 
 
 analyze_button = st.button(
-    "🔍 Analyze Product",
+    "🔍 Analyze Product & Find Similar Products",
     type="primary",
     use_container_width=True
 )
@@ -781,13 +832,21 @@ if analyze_button:
     if not product_url:
 
         st.warning(
-            "Please paste a product URL."
+            "Please paste a product URL first."
         )
 
     elif not (
-        product_url.startswith("http://")
+
+        product_url.startswith(
+            "http://"
+        )
+
         or
-        product_url.startswith("https://")
+
+        product_url.startswith(
+            "https://"
+        )
+
     ):
 
         st.error(
@@ -795,10 +854,17 @@ if analyze_button:
             "http:// or https://"
         )
 
+    elif df is None:
+
+        st.warning(
+            "Please upload your CSV dataset from the "
+            "sidebar before analyzing the URL."
+        )
+
     else:
 
         with st.spinner(
-            "Analyzing product..."
+            "Analyzing product and finding similar products..."
         ):
 
             try:
@@ -813,15 +879,29 @@ if analyze_button:
                     "url_product"
                 ] = product_data
 
+
+                # =========================================
+                # RESET OLD RESULTS
+                # =========================================
+
+                st.session_state[
+                    "url_recommendations"
+                ] = None
+
+
             except Exception as e:
 
                 st.error(
-                    f"Unable to analyze the product: {e}"
+                    "Unable to analyze this product."
+                )
+
+                st.info(
+                    f"Reason: {e}"
                 )
 
 
 # =========================================================
-# DISPLAY URL PRODUCT
+# URL PRODUCT RESULTS
 # =========================================================
 
 if "url_product" in st.session_state:
@@ -911,7 +991,9 @@ if "url_product" in st.session_state:
     # =====================================================
 
     positive = 0
+
     negative = 0
+
     neutral = 0
 
     sentiment_scores = []
@@ -920,10 +1002,13 @@ if "url_product" in st.session_state:
     for review in reviews:
 
         sentiment, score = (
+
             analyze_sentiment(
                 review
             )
+
         )
+
 
         sentiment_scores.append(
             score
@@ -944,20 +1029,34 @@ if "url_product" in st.session_state:
 
 
     total_reviews = (
+
         positive
+
         +
+
         negative
+
         +
+
         neutral
+
     )
 
 
     if sentiment_scores:
 
         average_sentiment = (
-            sum(sentiment_scores)
+
+            sum(
+                sentiment_scores
+            )
+
             /
-            len(sentiment_scores)
+
+            len(
+                sentiment_scores
+            )
+
         )
 
     else:
@@ -968,33 +1067,41 @@ if "url_product" in st.session_state:
     if total_reviews > 0:
 
         positive_percentage = (
+
             positive
             /
             total_reviews
             *
             100
+
         )
 
         neutral_percentage = (
+
             neutral
             /
             total_reviews
             *
             100
+
         )
 
         negative_percentage = (
+
             negative
             /
             total_reviews
             *
             100
+
         )
 
     else:
 
         positive_percentage = 0
+
         neutral_percentage = 0
+
         negative_percentage = 0
 
 
@@ -1050,26 +1157,36 @@ if "url_product" in st.session_state:
     if total_reviews > 0:
 
         sentiment_chart = pd.DataFrame(
+
             {
+
                 "Sentiment": [
+
                     "Positive",
                     "Neutral",
                     "Negative"
+
                 ],
 
                 "Reviews": [
+
                     positive,
                     neutral,
                     negative
+
                 ]
+
             }
+
         )
 
 
         st.bar_chart(
+
             sentiment_chart.set_index(
                 "Sentiment"
             )
+
         )
 
 
@@ -1080,7 +1197,11 @@ if "url_product" in st.session_state:
     if rating is not None:
 
         rating_score = (
-            rating / 5
+
+            rating
+            /
+            5
+
         )
 
     else:
@@ -1089,7 +1210,11 @@ if "url_product" in st.session_state:
 
 
     sentiment_score = (
-        average_sentiment + 1
+
+        average_sentiment
+        +
+        1
+
     ) / 2
 
 
@@ -1140,29 +1265,42 @@ if "url_product" in st.session_state:
 
 
     # =====================================================
-    # FINAL BUY SCORE
+    # BUY SCORE
     # =====================================================
 
     buy_score = (
 
-        0.40 * rating_score
+        0.40
+        *
+        rating_score
 
         +
 
-        0.30 * sentiment_score
+        0.30
+        *
+        sentiment_score
 
         +
 
-        0.15 * review_confidence
+        0.15
+        *
+        review_confidence
 
         +
 
-        0.15 * risk_score
+        0.15
+        *
+        risk_score
+
     )
 
 
     buy_percentage = (
-        buy_score * 100
+
+        buy_score
+        *
+        100
+
     )
 
 
@@ -1227,319 +1365,650 @@ if "url_product" in st.session_state:
 
     st.caption(
         "Buy Score = 40% Rating + 30% Sentiment + "
-        "15% Review Confidence + 15% Risk"
+        "15% Review Confidence + 15% Review Risk"
     )
 
 
     # =====================================================
-    # BETTER RATED ALTERNATIVES
+    # URL → DATASET RECOMMENDATION
     # =====================================================
 
-    if df is not None:
+    st.markdown(
+        '<div class="section-title">🔄 Similar & Better-Rated Products</div>',
+        unsafe_allow_html=True
+    )
 
-        st.markdown(
-            '<div class="section-title">🔄 Better Rated Alternatives</div>',
-            unsafe_allow_html=True
+
+    if rating is None:
+
+        st.warning(
+            "The product rating could not be extracted "
+            "from this URL. Similar-product recommendations "
+            "cannot be calculated reliably."
         )
 
+    else:
 
-        if rating is None:
+        # =================================================
+        # CREATE A COPY OF DATASET
+        # =================================================
 
-            st.info(
-                "A product rating could not be extracted "
-                "from the URL, so same/higher-rated "
-                "alternatives cannot be identified."
+        recommendation_df = df.copy()
+
+
+        # =================================================
+        # FILTER SAME OR HIGHER RATING
+        # =================================================
+
+        better_products = recommendation_df[
+
+            recommendation_df[
+                "Rating of the product"
+            ]
+
+            >=
+
+            rating
+
+        ].copy()
+
+
+        # Remove impossible ratings
+
+        better_products = better_products[
+
+            better_products[
+                "Rating of the product"
+            ]
+
+            > 0
+
+        ]
+
+
+        if better_products.empty:
+
+            st.warning(
+                "No products in your dataset have "
+                "the same or higher rating."
             )
-
 
         else:
 
-            alternatives = df[
-                df[
-                    "Rating of the product"
-                ] >= rating
-            ].copy()
+            # =============================================
+            # CREATE URL PRODUCT PROFILE
+            # =============================================
+
+            url_profile = {}
 
 
-            alternatives = alternatives[
-                alternatives[
-                    "Rating of the product"
-                ] > 0
-            ]
+            # =============================================
+            # NUMERICAL FEATURES
+            # =============================================
 
+            for column in numeric_features:
 
-            if alternatives.empty:
+                if column == "Rating of the product":
 
-                st.warning(
-                    "No products in the uploaded dataset "
-                    "have the same or higher rating."
-                )
+                    url_profile[column] = rating
 
+                elif (
+                    column
+                    ==
+                    "Customer review sentiment score (overall)"
+                ):
 
-            else:
-
-                # =========================================
-                # RATING SCORE
-                # =========================================
-
-                alternatives[
-                    "Rating Score"
-                ] = (
-                    alternatives[
-                        "Rating of the product"
-                    ]
-                    /
-                    5
-                )
-
-
-                # =========================================
-                # SENTIMENT SCORE
-                # =========================================
-
-                alternatives[
-                    "Sentiment Score"
-                ] = (
-                    alternatives[
-                        "Customer review sentiment score (overall)"
-                    ]
-                    +
-                    1
-                ) / 2
-
-
-                # =========================================
-                # BRAND MATCH
-                # =========================================
-
-                if brand:
-
-                    alternatives[
-                        "Brand Match"
-                    ] = (
-                        alternatives[
-                            "Brand of the product"
-                        ]
-                        .str.lower()
-                        ==
-                        brand.lower()
-                    ).astype(float)
+                    url_profile[column] = (
+                        average_sentiment
+                    )
 
                 else:
 
-                    alternatives[
-                        "Brand Match"
-                    ] = 0
+                    # For information not available
+                    # from the URL, use dataset median.
 
-
-                # =========================================
-                # ALTERNATIVE SCORE
-                # =========================================
-
-                alternatives[
-                    "Alternative Score"
-                ] = (
-                    0.50
-                    *
-                    alternatives[
-                        "Rating Score"
-                    ]
-                    +
-                    0.30
-                    *
-                    alternatives[
-                        "Sentiment Score"
-                    ]
-                    +
-                    0.20
-                    *
-                    alternatives[
-                        "Brand Match"
-                    ]
-                )
-
-
-                # =========================================
-                # SORT
-                # =========================================
-
-                alternatives = (
-                    alternatives
-                    .sort_values(
-                        "Alternative Score",
-                        ascending=False
+                    url_profile[column] = (
+                        df[column].median()
                     )
+
+
+            # =============================================
+            # CATEGORICAL FEATURES
+            # =============================================
+
+            for column in categorical_features:
+
+                if (
+                    column
+                    ==
+                    "Brand of the product"
+                    and
+                    brand
+                ):
+
+                    url_profile[column] = brand
+
+                else:
+
+                    url_profile[column] = (
+                        df[column].mode().iloc[0]
+                    )
+
+
+            # =============================================
+            # URL PRODUCT DATAFRAME
+            # =============================================
+
+            url_product_df = pd.DataFrame(
+                [url_profile]
+            )
+
+
+            # =============================================
+            # TRANSFORM URL PRODUCT
+            # =============================================
+
+            url_feature_vector = (
+                preprocessor.transform(
+                    url_product_df[
+                        required_columns
+                    ]
+                )
+            )
+
+
+            # =============================================
+            # CALCULATE SIMILARITY
+            # =============================================
+
+            url_similarities = (
+                cosine_similarity(
+                    url_feature_vector,
+                    feature_matrix
+                )[0]
+            )
+
+
+            recommendation_df[
+                "URL Similarity"
+            ] = url_similarities
+
+
+            # =============================================
+            # FILTER SAME/HIGHER RATING
+            # =============================================
+
+            better_products = recommendation_df[
+
+                recommendation_df[
+                    "Rating of the product"
+                ]
+
+                >=
+
+                rating
+
+            ].copy()
+
+
+            # =============================================
+            # RATING SCORE
+            # =============================================
+
+            better_products[
+                "Rating Score"
+            ] = (
+
+                better_products[
+                    "Rating of the product"
+                ]
+
+                /
+
+                5
+
+            )
+
+
+            # =============================================
+            # SENTIMENT SCORE
+            # =============================================
+
+            better_products[
+                "Sentiment Score"
+            ] = (
+
+                better_products[
+                    "Customer review sentiment score (overall)"
+                ]
+
+                +
+
+                1
+
+            ) / 2
+
+
+            # =============================================
+            # BRAND MATCH
+            # =============================================
+
+            if brand:
+
+                better_products[
+                    "Brand Match"
+                ] = (
+
+                    better_products[
+                        "Brand of the product"
+                    ]
+
+                    .str.lower()
+
+                    ==
+
+                    brand.lower()
+
+                ).astype(float)
+
+            else:
+
+                better_products[
+                    "Brand Match"
+                ] = 0
+
+
+            # =============================================
+            # RATING IMPROVEMENT
+            # =============================================
+
+            rating_difference = (
+
+                better_products[
+                    "Rating of the product"
+                ]
+
+                -
+
+                rating
+
+            )
+
+
+            # Normalize rating improvement
+
+            better_products[
+                "Rating Advantage"
+            ] = (
+
+                rating_difference
+                /
+                5
+
+            ).clip(
+                lower=0,
+                upper=1
+            )
+
+
+            # =============================================
+            # FINAL ALTERNATIVE SCORE
+            # =============================================
+
+            better_products[
+                "Alternative Score"
+            ] = (
+
+                0.50
+                *
+                better_products[
+                    "URL Similarity"
+                ]
+
+                +
+
+                0.20
+                *
+                better_products[
+                    "Rating Score"
+                ]
+
+                +
+
+                0.15
+                *
+                better_products[
+                    "Sentiment Score"
+                ]
+
+                +
+
+                0.10
+                *
+                better_products[
+                    "Rating Advantage"
+                ]
+
+                +
+
+                0.05
+                *
+                better_products[
+                    "Brand Match"
+                ]
+
+            )
+
+
+            # =============================================
+            # SORT
+            # =============================================
+
+            better_products = (
+
+                better_products
+
+                .sort_values(
+
+                    "Alternative Score",
+
+                    ascending=False
+
                 )
 
-
-                alternatives = (
-                    alternatives
-                    .head(5)
-                    .copy()
-                )
+            )
 
 
-                # =========================================
-                # DISPLAY TABLE
-                # =========================================
+            # =============================================
+            # TOP 5
+            # =============================================
 
-                alternative_display = alternatives[
+            top_url_recommendations = (
+
+                better_products
+
+                .head(5)
+
+                .copy()
+
+            )
+
+
+            # =============================================
+            # DISPLAY TABLE
+            # =============================================
+
+            display = (
+                top_url_recommendations[
                     [
                         "Product ID",
                         "Brand of the product",
                         "Rating of the product",
                         "Customer review sentiment score (overall)",
+                        "URL Similarity",
                         "Alternative Score"
                     ]
-                ].copy()
+                ]
+                .copy()
+            )
 
 
-                alternative_display.columns = [
+            display.columns = [
 
-                    "Product ID",
-                    "Brand",
-                    "Rating",
-                    "Review Sentiment",
-                    "Alternative Score"
+                "Product ID",
+                "Brand",
+                "Rating",
+                "Review Sentiment",
+                "Similarity",
+                "Recommendation Score"
+
+            ]
+
+
+            display[
+                "Rating"
+            ] = (
+
+                display[
+                    "Rating"
                 ]
 
+                .round(1)
 
-                alternative_display[
-                    "Rating"
-                ] = (
-                    alternative_display[
-                        "Rating"
-                    ].round(1)
-                )
+            )
 
 
-                alternative_display[
+            display[
+                "Review Sentiment"
+            ] = (
+
+                display[
                     "Review Sentiment"
-                ] = (
-                    alternative_display[
-                        "Review Sentiment"
-                    ].round(2)
-                )
+                ]
+
+                .round(2)
+
+            )
 
 
-                alternative_display[
+            display[
+                "Similarity"
+            ] = (
+
+                display[
+                    "Similarity"
+                ]
+
+                *
+
+                100
+
+            ).round(2)
+
+
+            display[
+                "Recommendation Score"
+            ] = (
+
+                display[
+                    "Recommendation Score"
+                ]
+
+                *
+
+                100
+
+            ).round(2)
+
+
+            st.dataframe(
+
+                display,
+
+                use_container_width=True,
+
+                hide_index=True
+
+            )
+
+
+            # =============================================
+            # BEST URL RECOMMENDATION
+            # =============================================
+
+            best_url_product = (
+                top_url_recommendations.iloc[0]
+            )
+
+
+            best_rating = (
+                best_url_product[
+                    "Rating of the product"
+                ]
+            )
+
+
+            best_brand = (
+                best_url_product[
+                    "Brand of the product"
+                ]
+            )
+
+
+            best_id = int(
+                best_url_product[
+                    "Product ID"
+                ]
+            )
+
+
+            best_similarity = (
+                best_url_product[
+                    "URL Similarity"
+                ]
+                *
+                100
+            )
+
+
+            best_score = (
+                best_url_product[
                     "Alternative Score"
-                ] = (
-                    alternative_display[
-                        "Alternative Score"
-                    ]
-                    *
-                    100
-                ).round(2)
+                ]
+                *
+                100
+            )
 
 
-                st.dataframe(
-                    alternative_display,
-                    use_container_width=True,
-                    hide_index=True
+            rating_difference = (
+
+                best_rating
+
+                -
+
+                rating
+
+            )
+
+
+            # =============================================
+            # BEST ALTERNATIVE MESSAGE
+            # =============================================
+
+            st.success(
+
+                f"🏆 Best Alternative: "
+
+                f"{best_brand} "
+
+                f"(Product ID {best_id}) "
+
+                f"— ⭐ {best_rating:.1f}/5"
+
+            )
+
+
+            if rating_difference > 0:
+
+                st.info(
+
+                    f"⭐ This product has a "
+
+                    f"{rating_difference:.1f} point "
+
+                    f"higher rating than the product "
+
+                    f"from your URL."
+
+                )
+
+            else:
+
+                st.info(
+
+                    "⭐ This product has the same rating "
+                    "as the product from your URL."
+
                 )
 
 
-                # =========================================
-                # BEST ALTERNATIVE
-                # =========================================
+            # =============================================
+            # RECOMMENDATION SCORE
+            # =============================================
 
-                best_alternative = (
-                    alternatives.iloc[0]
-                )
+            st.caption(
 
+                f"Similarity with URL product: "
+                f"{best_similarity:.2f}% | "
 
-                best_rating = (
-                    best_alternative[
-                        "Rating of the product"
-                    ]
-                )
+                f"Recommendation Score: "
+                f"{best_score:.2f}%"
 
-
-                best_brand = (
-                    best_alternative[
-                        "Brand of the product"
-                    ]
-                )
+            )
 
 
-                rating_difference = (
-                    best_rating - rating
-                )
+            # =============================================
+            # CHART
+            # =============================================
+
+            st.subheader(
+                "📊 Similarity with URL Product"
+            )
 
 
-                st.success(
-                    f"🏆 Best Alternative: "
-                    f"{best_brand} "
-                    f"(Product ID "
-                    f"{int(best_alternative['Product ID'])}) "
-                    f"— ⭐ {best_rating:.1f}/5"
-                )
+            chart_data = display.copy()
 
 
-                if rating_difference > 0:
+            chart_data[
+                "Product"
+            ] = (
 
-                    st.info(
-                        f"⭐ This alternative has a "
-                        f"{rating_difference:.1f} point "
-                        f"higher rating than the product "
-                        f"you are considering."
-                    )
+                chart_data[
+                    "Brand"
+                ]
 
-                else:
+                +
 
-                    st.info(
-                        "⭐ This alternative has the "
-                        "same rating as the product "
-                        "you are considering."
-                    )
+                " - ID "
 
+                +
 
-                # =========================================
-                # ALTERNATIVE CHART
-                # =========================================
+                chart_data[
+                    "Product ID"
+                ].astype(str)
 
-                st.subheader(
-                    "📊 Alternative Scores"
-                )
+            )
 
 
-                chart = alternative_display.copy()
+            chart_data = (
 
+                chart_data
 
-                chart[
+                .set_index(
                     "Product"
-                ] = (
-                    chart["Brand"]
-                    +
-                    " - ID "
-                    +
-                    chart[
-                        "Product ID"
-                    ].astype(str)
                 )
 
+                [
 
-                chart = (
-                    chart
-                    .set_index(
-                        "Product"
-                    )[
-                        "Alternative Score"
-                    ]
-                )
+                    "Recommendation Score"
+
+                ]
+
+            )
 
 
-                st.bar_chart(
-                    chart
-                )
+            st.bar_chart(
+                chart_data
+            )
 
 
-                st.caption(
-                    "Alternative Score = 50% Rating + "
-                    "30% Review Sentiment + "
-                    "20% Brand Match"
-                )
+            st.caption(
+
+                "Recommendation Score combines "
+                "product similarity, rating, review "
+                "sentiment, rating advantage and brand match."
+
+            )
 
 
 # =========================================================
@@ -1594,7 +2063,7 @@ else:
 
         st.metric(
             "🔢 Features Used",
-            12
+            len(required_columns)
         )
 
 
@@ -1617,7 +2086,9 @@ else:
 
 
     selected_index = df.index[
-        df["Product ID"] == selected_id
+        df["Product ID"]
+        ==
+        selected_id
     ][0]
 
 
@@ -1661,43 +2132,64 @@ else:
 
 
     # =====================================================
-    # COSINE SIMILARITY
+    # DATASET SIMILARITY
     # =====================================================
 
     similarities = (
+
         similarity_matrix[
             selected_index
         ]
+
     )
 
 
     recommendations = pd.DataFrame(
+
         {
+
             "Product ID":
                 df["Product ID"],
 
             "Similarity":
                 similarities
+
         }
+
     )
 
 
     recommendations = (
+
         recommendations[
+
             recommendations[
                 "Product ID"
-            ] != selected_id
+            ]
+
+            !=
+
+            selected_id
+
         ]
+
         .copy()
+
     )
 
 
     recommendations = (
+
         recommendations.merge(
+
             df,
+
             on="Product ID",
+
             how="left"
+
         )
+
     )
 
 
@@ -1706,33 +2198,45 @@ else:
     # =====================================================
 
     rating_score = (
+
         recommendations[
             "Rating of the product"
         ]
+
         /
+
         5
+
     )
 
 
     sentiment_score = (
+
         recommendations[
             "Customer review sentiment score (overall)"
         ]
+
         +
+
         1
+
     ) / 2
 
 
     recommendations[
         "Product Quality Score"
     ] = (
+
         0.5
         *
         rating_score
+
         +
+
         0.5
         *
         sentiment_score
+
     )
 
 
@@ -1743,33 +2247,47 @@ else:
     recommendations[
         "Recommendation Score"
     ] = (
+
         0.60
         *
         recommendations[
             "Similarity"
         ]
+
         +
+
         0.40
         *
         recommendations[
             "Product Quality Score"
         ]
+
     )
 
 
     recommendations = (
+
         recommendations
+
         .sort_values(
+
             "Recommendation Score",
+
             ascending=False
+
         )
+
     )
 
 
     top_recommendations = (
+
         recommendations
+
         .head(5)
+
         .copy()
+
     )
 
 
@@ -1783,24 +2301,38 @@ else:
 
 
     display = top_recommendations[
+
         [
+
             "Product ID",
+
             "Brand of the product",
+
             "Rating of the product",
+
             "Customer review sentiment score (overall)",
+
             "Similarity",
+
             "Recommendation Score"
+
         ]
+
     ].copy()
 
 
     display.columns = [
 
         "Product ID",
+
         "Brand",
+
         "Rating",
+
         "Review Sentiment",
+
         "Similarity",
+
         "Recommendation Score"
 
     ]
@@ -1809,47 +2341,67 @@ else:
     display[
         "Rating"
     ] = (
+
         display[
             "Rating"
-        ].round(1)
+        ]
+
+        .round(1)
+
     )
 
 
     display[
         "Review Sentiment"
     ] = (
+
         display[
             "Review Sentiment"
-        ].round(2)
+        ]
+
+        .round(2)
+
     )
 
 
     display[
         "Similarity"
     ] = (
+
         display[
             "Similarity"
         ]
+
         *
+
         100
+
     ).round(2)
 
 
     display[
         "Recommendation Score"
     ] = (
+
         display[
             "Recommendation Score"
         ]
+
         *
+
         100
+
     ).round(2)
 
 
     st.dataframe(
+
         display,
+
         use_container_width=True,
+
         hide_index=True
+
     )
 
 
@@ -1868,25 +2420,38 @@ else:
     chart_data[
         "Product"
     ] = (
+
         chart_data[
             "Brand"
         ]
+
         +
+
         " - ID "
+
         +
+
         chart_data[
             "Product ID"
         ].astype(str)
+
     )
 
 
     chart_data = (
+
         chart_data
+
         .set_index(
             "Product"
-        )[
+        )
+
+        [
+
             "Recommendation Score"
+
         ]
+
     )
 
 
@@ -1905,12 +2470,19 @@ else:
 
 
     st.success(
+
         f"🏆 Best Recommendation: "
+
         f"{best['Brand of the product']} "
+
         f"(Product ID "
+
         f"{int(best['Product ID'])}) "
+
         f"with a recommendation score of "
+
         f"{best['Recommendation Score'] * 100:.2f}%"
+
     )
 
 
@@ -1924,32 +2496,47 @@ else:
 
 
     average_score = (
+
         top_recommendations[
             "Recommendation Score"
         ]
+
         .mean()
+
         *
+
         100
+
     )
 
 
     average_similarity = (
+
         top_recommendations[
             "Similarity"
         ]
+
         .mean()
+
         *
+
         100
+
     )
 
 
     best_score = (
+
         top_recommendations[
             "Recommendation Score"
         ]
+
         .max()
+
         *
+
         100
+
     )
 
 
@@ -1959,30 +2546,41 @@ else:
     with e1:
 
         st.metric(
+
             "Average Top-5 Score",
+
             f"{average_score:.2f}%"
+
         )
 
 
     with e2:
 
         st.metric(
+
             "Average Similarity",
+
             f"{average_similarity:.2f}%"
+
         )
 
 
     with e3:
 
         st.metric(
+
             "Best Recommendation",
+
             f"{best_score:.2f}%"
+
         )
 
 
     st.caption(
+
         "These values represent recommendation and "
         "similarity scores, not classification accuracy."
+
     )
 
 
@@ -1998,39 +2596,38 @@ else:
             """
             The system uses a content-based recommendation approach.
 
-            Each product is represented using numerical and
-            categorical characteristics such as:
+            For a pasted product URL, the system first attempts
+            to extract the product name, rating, brand and
+            customer reviews.
 
-            • Customer behavior
-            • Product rating
-            • Product price
-            • Review sentiment
-            • Brand
-            • Gender
-            • Holiday
-            • Season
-            • Geographical location
+            Customer reviews are analyzed using sentiment analysis.
 
-            Numerical features are standardized using
-            StandardScaler.
+            The URL product is then represented using the
+            information available from the webpage.
 
-            Categorical features are converted into numerical
-            representations using OneHotEncoder.
+            Missing product attributes are represented using
+            typical values from the uploaded dataset.
 
-            Cosine similarity is then used to identify products
-            with similar characteristics.
+            The URL product profile is transformed using the
+            same preprocessing pipeline as the dataset.
 
-            The final Recommendation Score combines:
+            Cosine similarity is then used to compare the
+            URL product with products in the dataset.
 
-            60% Product Similarity
+            Products with the same or higher rating are
+            prioritized.
 
-            40% Product Quality
+            The final alternative score considers:
 
-            Product Quality is calculated from:
+            50% Product Similarity
 
-            50% Product Rating
+            20% Rating Quality
 
-            50% Customer Review Sentiment
+            15% Review Sentiment
+
+            10% Rating Advantage
+
+            5% Brand Match
             """
         )
 
@@ -2044,9 +2641,13 @@ else:
     ):
 
         st.dataframe(
+
             df,
+
             use_container_width=True,
+
             hide_index=True
+
         )
 
 
