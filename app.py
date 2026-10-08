@@ -29,242 +29,227 @@ st.set_page_config(
 
 st.markdown(
     """
-    <style>
+<style>
 
-    /* =====================================================
-       APPLICATION BACKGROUND
-       ===================================================== */
+.stApp {
+    background: #1f2328;
+}
 
-    .stApp {
-        background: #1f2328;
-    }
-
-    .main {
-        padding-top: 1rem;
-    }
+.main {
+    padding-top: 1rem;
+}
 
 
-    /* =====================================================
-       MAIN PROJECT HEADER
-       ===================================================== */
+/* =====================================================
+   MAIN PROJECT HEADER
+   ===================================================== */
 
-    .app-header {
-        padding: 28px 30px;
-        border-radius: 14px;
-        background: #292e34;
-        color: #ffffff;
-        margin-bottom: 30px;
-        border: 1px solid #41474e;
-    }
+.app-header {
+    padding: 28px 30px;
+    border-radius: 14px;
+    background: #292e34;
+    color: #ffffff;
+    margin-bottom: 30px;
+    border: 1px solid #41474e;
+}
 
-    .app-header h1 {
-        margin: 0;
-        font-size: 32px;
-        font-weight: 900;
-        color: #ffffff;
-        letter-spacing: 0.3px;
-        background: #3a4047;
-        padding: 11px 17px;
-        border-radius: 8px;
-        display: inline-block;
-        border-left: 4px solid #c4c8cc;
-    }
+.app-header h1 {
+    margin: 0;
+    font-size: 32px;
+    font-weight: 900;
+    color: #ffffff;
+    letter-spacing: 0.3px;
+    background: #3a4047;
+    padding: 11px 17px;
+    border-radius: 8px;
+    display: inline-block;
+    border-left: 4px solid #c4c8cc;
+}
 
-    .app-header p {
-        margin-top: 14px;
-        margin-bottom: 0;
-        color: #c2c6ca;
-        font-size: 16px;
-        line-height: 1.6;
-    }
-
-
-    /* =====================================================
-       SECTION TITLES
-       ===================================================== */
-
-    .section-title {
-        font-size: 30px;
-        font-weight: 900;
-        color: #f2f3f4;
-        margin-top: 30px;
-        margin-bottom: 18px;
-        letter-spacing: 0.2px;
-    }
+.app-header p {
+    margin-top: 14px;
+    margin-bottom: 0;
+    color: #c2c6ca;
+    font-size: 16px;
+    line-height: 1.6;
+}
 
 
-    /* =====================================================
-       REMOVE METRIC BOXES
-       ===================================================== */
+/* =====================================================
+   SECTION TITLES
+   ===================================================== */
 
-    [data-testid="stMetric"] {
-        background: transparent !important;
-        border: none !important;
-        padding: 8px 4px !important;
-        box-shadow: none !important;
-    }
-
-    [data-testid="stMetricLabel"] {
-        color: #aeb4ba !important;
-        font-weight: 500 !important;
-    }
-
-    [data-testid="stMetricValue"] {
-        color: #f2f3f4 !important;
-        font-weight: 800 !important;
-    }
-
-    [data-testid="stMetricDelta"] {
-        color: #aeb4ba !important;
-    }
+.section-title {
+    font-size: 30px;
+    font-weight: 900;
+    color: #f2f3f4;
+    margin-top: 30px;
+    margin-bottom: 18px;
+    letter-spacing: 0.2px;
+}
 
 
-    /* =====================================================
-       GENERAL TEXT
-       ===================================================== */
+/* =====================================================
+   REMOVE METRIC BOXES
+   ===================================================== */
 
-    .stMarkdown,
-    .stText {
-        color: #d5d8db;
-    }
+[data-testid="stMetric"] {
+    background: transparent !important;
+    border: none !important;
+    padding: 8px 4px !important;
+    box-shadow: none !important;
+}
 
+[data-testid="stMetricLabel"] {
+    color: #aeb4ba !important;
+    font-weight: 500 !important;
+}
 
-    /* =====================================================
-       HEADINGS
-       ===================================================== */
+[data-testid="stMetricValue"] {
+    color: #f2f3f4 !important;
+    font-weight: 800 !important;
+}
 
-    h1,
-    h2,
-    h3 {
-        color: #f1f2f3 !important;
-    }
-
-
-    /* =====================================================
-       SIDEBAR
-       ===================================================== */
-
-    section[data-testid="stSidebar"] {
-        background: #181b1f;
-        border-right: 1px solid #34393f;
-    }
-
-    section[data-testid="stSidebar"] * {
-        color: #d7dadd;
-    }
+[data-testid="stMetricDelta"] {
+    color: #aeb4ba !important;
+}
 
 
-    /* =====================================================
-       BUTTONS
-       ===================================================== */
+/* =====================================================
+   GENERAL TEXT
+   ===================================================== */
 
-    .stButton > button {
-        border-radius: 8px;
-        font-weight: 700;
-        border: 1px solid #5b6269;
-        background: #343a40;
-        color: #f1f2f3;
-    }
+.stMarkdown,
+.stText {
+    color: #d5d8db;
+}
 
-    .stButton > button:hover {
-        border-color: #8b9299;
-        background: #3d4349;
-        color: #ffffff;
-    }
+h1,
+h2,
+h3 {
+    color: #f1f2f3 !important;
+}
 
 
-    /* =====================================================
-       INPUT BOX
-       ===================================================== */
+/* =====================================================
+   SIDEBAR
+   ===================================================== */
 
-    .stTextInput input {
-        background: #292e34 !important;
-        color: #f1f2f3 !important;
-        border: 1px solid #555c63 !important;
-        border-radius: 8px !important;
-    }
+section[data-testid="stSidebar"] {
+    background: #181b1f;
+    border-right: 1px solid #34393f;
+}
 
-    .stTextInput input::placeholder {
-        color: #8e959c !important;
-    }
+section[data-testid="stSidebar"] * {
+    color: #d7dadd;
+}
 
 
-    /* =====================================================
-       SELECT BOX
-       ===================================================== */
+/* =====================================================
+   BUTTONS
+   ===================================================== */
 
-    div[data-baseweb="select"] > div {
-        background: #292e34 !important;
-        border-color: #555c63 !important;
-        color: #f1f2f3 !important;
-    }
+.stButton > button {
+    border-radius: 8px;
+    font-weight: 700;
+    border: 1px solid #5b6269;
+    background: #343a40;
+    color: #f1f2f3;
+}
 
-
-    /* =====================================================
-       DATA TABLE
-       ===================================================== */
-
-    [data-testid="stDataFrame"] {
-        border: 1px solid #3a4046;
-        border-radius: 10px;
-    }
+.stButton > button:hover {
+    border-color: #8b9299;
+    background: #3d4349;
+    color: #ffffff;
+}
 
 
-    /* =====================================================
-       EXPANDER
-       ===================================================== */
+/* =====================================================
+   TEXT INPUT
+   ===================================================== */
 
-    [data-testid="stExpander"] {
-        border: 1px solid #3a4046;
-        border-radius: 10px;
-        background: #24282d;
-    }
+.stTextInput input {
+    background: #292e34 !important;
+    color: #f1f2f3 !important;
+    border: 1px solid #555c63 !important;
+    border-radius: 8px !important;
+}
 
-
-    /* =====================================================
-       DIVIDERS
-       ===================================================== */
-
-    hr {
-        border: none;
-        border-top: 1px solid #3a4046;
-        margin: 32px 0;
-    }
+.stTextInput input::placeholder {
+    color: #8e959c !important;
+}
 
 
-    /* =====================================================
-       ALERTS
-       ===================================================== */
+/* =====================================================
+   SELECT BOX
+   ===================================================== */
 
-    [data-testid="stAlert"] {
-        border-radius: 9px;
-    }
+div[data-baseweb="select"] > div {
+    background: #292e34 !important;
+    border-color: #555c63 !important;
+    color: #f1f2f3 !important;
+}
 
-    </style>
-    """,
+
+/* =====================================================
+   DATA TABLE
+   ===================================================== */
+
+[data-testid="stDataFrame"] {
+    border: 1px solid #3a4046;
+    border-radius: 10px;
+}
+
+
+/* =====================================================
+   EXPANDER
+   ===================================================== */
+
+[data-testid="stExpander"] {
+    border: 1px solid #3a4046;
+    border-radius: 10px;
+    background: #24282d;
+}
+
+
+/* =====================================================
+   DIVIDERS
+   ===================================================== */
+
+hr {
+    border: none;
+    border-top: 1px solid #3a4046;
+    margin: 32px 0;
+}
+
+
+/* =====================================================
+   ALERTS
+   ===================================================== */
+
+[data-testid="stAlert"] {
+    border-radius: 9px;
+}
+
+</style>
+""",
     unsafe_allow_html=True
 )
 
 
 # =========================================================
 # MAIN PROJECT HEADER
+# IMPORTANT:
+# HTML TAGS MUST START AT THE LEFT SIDE
 # =========================================================
 
 st.markdown(
     """
-    <div class="app-header">
-
-        <h1>
-            🛒 E-Commerce Product Recommendation Using Customer Reviews
-        </h1>
-
-        <p>
-            Analyze customer feedback and discover similar
-            products with equal or higher ratings.
-        </p>
-
-    </div>
-    """,
+<div class="app-header">
+<h1>🛒 E-Commerce Product Recommendation Using Customer Reviews</h1>
+<p>Analyze customer feedback and discover similar products with equal or higher ratings.</p>
+</div>
+""",
     unsafe_allow_html=True
 )
 
@@ -294,15 +279,12 @@ def analyze_sentiment(text):
     )["compound"]
 
     if score >= 0.05:
-
         return "Positive", score
 
     elif score <= -0.05:
-
         return "Negative", score
 
     else:
-
         return "Neutral", score
 
 
@@ -316,11 +298,8 @@ def extract_rating(text):
         return None
 
     patterns = [
-
         r"([0-5](?:\.[0-9])?)\s*(?:out of\s*5|/5)",
-
         r"([0-5](?:\.[0-9])?)\s*stars?"
-
     ]
 
     for pattern in patterns:
@@ -338,11 +317,9 @@ def extract_rating(text):
                 value = float(match)
 
                 if 0 <= value <= 5:
-
                     return value
 
             except:
-
                 pass
 
     return None
@@ -358,7 +335,6 @@ def extract_brand(title):
         return None
 
     known_brands = [
-
         "Nike",
         "Adidas",
         "Puma",
@@ -379,7 +355,6 @@ def extract_brand(title):
         "Max",
         "Roadster",
         "H&M"
-
     ]
 
     title_lower = title.lower()
@@ -387,7 +362,6 @@ def extract_brand(title):
     for brand in known_brands:
 
         if brand.lower() in title_lower:
-
             return brand
 
     return None
@@ -400,18 +374,13 @@ def extract_brand(title):
 def extract_product_data(url):
 
     headers = {
-
-        "User-Agent":
-            (
-                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-                "AppleWebKit/537.36 "
-                "(KHTML, like Gecko) "
-                "Chrome/142.0 Safari/537.36"
-            ),
-
-        "Accept-Language":
-            "en-US,en;q=0.9"
-
+        "User-Agent": (
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+            "AppleWebKit/537.36 "
+            "(KHTML, like Gecko) "
+            "Chrome/142.0 Safari/537.36"
+        ),
+        "Accept-Language": "en-US,en;q=0.9"
     }
 
     response = requests.get(
@@ -423,12 +392,10 @@ def extract_product_data(url):
     if response.status_code != 200:
 
         return {
-
             "title": None,
             "rating": None,
             "brand": None,
             "reviews": []
-
         }
 
     soup = BeautifulSoup(
@@ -486,6 +453,7 @@ def extract_product_data(url):
 
 
     # Try structured rating information
+
     if rating is None:
 
         rating_meta = soup.find(
@@ -505,7 +473,6 @@ def extract_product_data(url):
                 )
 
             except:
-
                 pass
 
 
@@ -516,14 +483,12 @@ def extract_product_data(url):
     reviews = []
 
     review_selectors = [
-
         '[class*="review"]',
         '[class*="Review"]',
         '[id*="review"]',
         '[id*="Review"]',
         '[data-hook*="review"]',
         '[itemprop="reviewBody"]'
-
     ]
 
     for selector in review_selectors:
@@ -541,12 +506,10 @@ def extract_product_data(url):
 
             if len(text) >= 50:
 
-                reviews.append(
-                    text
-                )
+                reviews.append(text)
 
 
-    # Remove duplicate reviews
+    # Remove duplicates
 
     reviews = list(
         dict.fromkeys(
@@ -568,15 +531,10 @@ def extract_product_data(url):
 
 
     return {
-
         "title": title,
-
         "rating": rating,
-
         "brand": brand,
-
         "reviews": reviews
-
     }
 
 
@@ -603,9 +561,7 @@ uploaded_file = st.sidebar.file_uploader(
 # =========================================================
 
 df = None
-
 feature_matrix = None
-
 similarity_matrix = None
 
 
@@ -654,7 +610,6 @@ if uploaded_file is not None:
             "Customer review sentiment score (overall)",
 
             "Price of the product"
-
         ]
 
 
@@ -673,7 +628,6 @@ if uploaded_file is not None:
             "Season",
 
             "Geographical locations"
-
         ]
 
 
@@ -695,7 +649,6 @@ if uploaded_file is not None:
             for column in required_columns
 
             if column not in df.columns
-
         ]
 
 
@@ -749,24 +702,18 @@ if uploaded_file is not None:
 
                     (
                         "numeric",
-
                         StandardScaler(),
-
                         numeric_features
                     ),
 
                     (
                         "categorical",
-
                         OneHotEncoder(
                             handle_unknown="ignore"
                         ),
-
                         categorical_features
                     )
-
                 ]
-
             )
 
 
@@ -964,9 +911,7 @@ if "url_product" in st.session_state:
     # =====================================================
 
     positive = 0
-
     negative = 0
-
     neutral = 0
 
     sentiment_scores = []
@@ -974,8 +919,10 @@ if "url_product" in st.session_state:
 
     for review in reviews:
 
-        sentiment, score = analyze_sentiment(
-            review
+        sentiment, score = (
+            analyze_sentiment(
+                review
+            )
         )
 
         sentiment_scores.append(
@@ -1103,7 +1050,6 @@ if "url_product" in st.session_state:
     if total_reviews > 0:
 
         sentiment_chart = pd.DataFrame(
-
             {
                 "Sentiment": [
                     "Positive",
@@ -1117,8 +1063,8 @@ if "url_product" in st.session_state:
                     negative
                 ]
             }
-
         )
+
 
         st.bar_chart(
             sentiment_chart.set_index(
@@ -1212,7 +1158,6 @@ if "url_product" in st.session_state:
         +
 
         0.15 * risk_score
-
     )
 
 
@@ -1309,10 +1254,6 @@ if "url_product" in st.session_state:
 
         else:
 
-            # =============================================
-            # SAME OR HIGHER RATING
-            # =============================================
-
             alternatives = df[
                 df[
                     "Rating of the product"
@@ -1398,29 +1339,23 @@ if "url_product" in st.session_state:
                 alternatives[
                     "Alternative Score"
                 ] = (
-
                     0.50
                     *
                     alternatives[
                         "Rating Score"
                     ]
-
                     +
-
                     0.30
                     *
                     alternatives[
                         "Sentiment Score"
                     ]
-
                     +
-
                     0.20
                     *
                     alternatives[
                         "Brand Match"
                     ]
-
                 )
 
 
@@ -1466,7 +1401,6 @@ if "url_product" in st.session_state:
                     "Rating",
                     "Review Sentiment",
                     "Alternative Score"
-
                 ]
 
 
