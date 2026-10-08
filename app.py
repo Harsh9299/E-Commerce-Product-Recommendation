@@ -16,7 +16,7 @@ from sklearn.metrics.pairwise import cosine_similarity
 # =========================================================
 
 st.set_page_config(
-    page_title="E-Commerce AI Advisor",
+    page_title="E-Commerce Product Recommendation",
     page_icon="🛒",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -31,65 +31,71 @@ st.markdown(
     """
     <style>
 
-    /* =================================================
-       MAIN APPLICATION
-       ================================================= */
+    /* =====================================================
+       APPLICATION BACKGROUND
+       ===================================================== */
+
+    .stApp {
+        background: #1f2328;
+    }
 
     .main {
         padding-top: 1rem;
     }
 
 
-    /* =================================================
-       HEADER
-       ================================================= */
+    /* =====================================================
+       MAIN PROJECT HEADER
+       ===================================================== */
 
     .app-header {
         padding: 28px 30px;
         border-radius: 14px;
-        background: #24272b;
-        color: #f1f1f1;
-        margin-bottom: 28px;
-        border: 1px solid #3a3e43;
+        background: #292e34;
+        color: #ffffff;
+        margin-bottom: 30px;
+        border: 1px solid #41474e;
     }
 
-.app-header h1 {
-    margin: 0;
-    font-size: 32px;
-    font-weight: 900;
-    color: #ffffff;
-    letter-spacing: 0.3px;
-    background: #3a3f45;
-    padding: 10px 16px;
-    border-radius: 8px;
-    display: inline-block;
-    border-left: 4px solid #bfc3c7;
-}
+    .app-header h1 {
+        margin: 0;
+        font-size: 32px;
+        font-weight: 900;
+        color: #ffffff;
+        letter-spacing: 0.3px;
+        background: #3a4047;
+        padding: 11px 17px;
+        border-radius: 8px;
+        display: inline-block;
+        border-left: 4px solid #c4c8cc;
+    }
 
     .app-header p {
-        margin-top: 8px;
+        margin-top: 14px;
         margin-bottom: 0;
-        color: #b9bdc2;
+        color: #c2c6ca;
         font-size: 16px;
+        line-height: 1.6;
     }
 
 
-    /* =================================================
-       SECTION HEADINGS
-       ================================================= */
+    /* =====================================================
+       SECTION TITLES
+       ===================================================== */
 
     .section-title {
-        font-size: 26px;
-        font-weight: 700;
-        color: #e2e4e7;
-        margin-top: 24px;
-        margin-bottom: 14px;
+        font-size: 30px;
+        font-weight: 900;
+        color: #f2f3f4;
+        margin-top: 30px;
+        margin-bottom: 18px;
+        letter-spacing: 0.2px;
     }
 
 
-    /* =================================================
+    /* =====================================================
        REMOVE METRIC BOXES
-       ================================================= */
+       ===================================================== */
 
     [data-testid="stMetric"] {
         background: transparent !important;
@@ -99,91 +105,139 @@ st.markdown(
     }
 
     [data-testid="stMetricLabel"] {
-        color: #aeb3b8 !important;
+        color: #aeb4ba !important;
+        font-weight: 500 !important;
     }
 
     [data-testid="stMetricValue"] {
-        color: #f1f1f1 !important;
-        font-weight: 700;
+        color: #f2f3f4 !important;
+        font-weight: 800 !important;
     }
 
     [data-testid="stMetricDelta"] {
-        color: #aeb3b8 !important;
+        color: #aeb4ba !important;
     }
 
 
-    /* =================================================
-       REMOVE CARD BACKGROUNDS
-       ================================================= */
-
-    .neutral-card,
-    .score-card,
-    .recommendation-card {
-        background: transparent !important;
-        border: none !important;
-        box-shadow: none !important;
-    }
-
-
-    /* =================================================
-       DIVIDERS
-       ================================================= */
-
-    hr {
-        border: none;
-        border-top: 1px solid #35393e;
-        margin: 30px 0;
-    }
-
-
-    /* =================================================
-       BUTTONS
-       ================================================= */
-
-    .stButton > button {
-        border-radius: 8px;
-        font-weight: 600;
-        border: 1px solid #555b62;
-    }
-
-
-    /* =================================================
-       TABLE
-       ================================================= */
-
-    [data-testid="stDataFrame"] {
-        border: 1px solid #35393e;
-        border-radius: 10px;
-    }
-
-
-    /* =================================================
-       EXPANDER
-       ================================================= */
-
-    [data-testid="stExpander"] {
-        border: 1px solid #35393e;
-        border-radius: 10px;
-    }
-
-
-    /* =================================================
-       NORMAL TEXT
-       ================================================= */
+    /* =====================================================
+       GENERAL TEXT
+       ===================================================== */
 
     .stMarkdown,
     .stText {
-        color: #d6d9dc;
+        color: #d5d8db;
     }
 
 
-    /* =================================================
+    /* =====================================================
+       HEADINGS
+       ===================================================== */
+
+    h1,
+    h2,
+    h3 {
+        color: #f1f2f3 !important;
+    }
+
+
+    /* =====================================================
        SIDEBAR
-       ================================================= */
+       ===================================================== */
 
     section[data-testid="stSidebar"] {
-        background: #17191c;
-        border-right: 1px solid #30343a;
+        background: #181b1f;
+        border-right: 1px solid #34393f;
+    }
+
+    section[data-testid="stSidebar"] * {
+        color: #d7dadd;
+    }
+
+
+    /* =====================================================
+       BUTTONS
+       ===================================================== */
+
+    .stButton > button {
+        border-radius: 8px;
+        font-weight: 700;
+        border: 1px solid #5b6269;
+        background: #343a40;
+        color: #f1f2f3;
+    }
+
+    .stButton > button:hover {
+        border-color: #8b9299;
+        background: #3d4349;
+        color: #ffffff;
+    }
+
+
+    /* =====================================================
+       INPUT BOX
+       ===================================================== */
+
+    .stTextInput input {
+        background: #292e34 !important;
+        color: #f1f2f3 !important;
+        border: 1px solid #555c63 !important;
+        border-radius: 8px !important;
+    }
+
+    .stTextInput input::placeholder {
+        color: #8e959c !important;
+    }
+
+
+    /* =====================================================
+       SELECT BOX
+       ===================================================== */
+
+    div[data-baseweb="select"] > div {
+        background: #292e34 !important;
+        border-color: #555c63 !important;
+        color: #f1f2f3 !important;
+    }
+
+
+    /* =====================================================
+       DATA TABLE
+       ===================================================== */
+
+    [data-testid="stDataFrame"] {
+        border: 1px solid #3a4046;
+        border-radius: 10px;
+    }
+
+
+    /* =====================================================
+       EXPANDER
+       ===================================================== */
+
+    [data-testid="stExpander"] {
+        border: 1px solid #3a4046;
+        border-radius: 10px;
+        background: #24282d;
+    }
+
+
+    /* =====================================================
+       DIVIDERS
+       ===================================================== */
+
+    hr {
+        border: none;
+        border-top: 1px solid #3a4046;
+        margin: 32px 0;
+    }
+
+
+    /* =====================================================
+       ALERTS
+       ===================================================== */
+
+    [data-testid="stAlert"] {
+        border-radius: 9px;
     }
 
     </style>
@@ -193,7 +247,7 @@ st.markdown(
 
 
 # =========================================================
-# HEADER
+# MAIN PROJECT HEADER
 # =========================================================
 
 st.markdown(
@@ -214,6 +268,10 @@ st.markdown(
     unsafe_allow_html=True
 )
 
+
+# =========================================================
+# INTRODUCTION
+# =========================================================
 
 st.write(
     "The system analyzes product ratings and customer "
@@ -427,7 +485,7 @@ def extract_product_data(url):
     )
 
 
-    # Try structured rating
+    # Try structured rating information
     if rating is None:
 
         rating_meta = soup.find(
@@ -497,7 +555,7 @@ def extract_product_data(url):
     )
 
 
-    # Analyze maximum 30 reviews internally
+    # Maximum 30 reviews analyzed internally
 
     reviews = reviews[:30]
 
@@ -656,7 +714,6 @@ if uploaded_file is not None:
 
         else:
 
-
             # =============================================
             # CLEAN NUMERICAL FEATURES
             # =============================================
@@ -664,11 +721,8 @@ if uploaded_file is not None:
             for column in numeric_features:
 
                 df[column] = pd.to_numeric(
-
                     df[column],
-
                     errors="coerce"
-
                 ).fillna(0)
 
 
@@ -679,13 +733,9 @@ if uploaded_file is not None:
             for column in categorical_features:
 
                 df[column] = (
-
                     df[column]
-
                     .fillna("Unknown")
-
                     .astype(str)
-
                 )
 
 
@@ -698,17 +748,14 @@ if uploaded_file is not None:
                 transformers=[
 
                     (
-
                         "numeric",
 
                         StandardScaler(),
 
                         numeric_features
-
                     ),
 
                     (
-
                         "categorical",
 
                         OneHotEncoder(
@@ -716,7 +763,6 @@ if uploaded_file is not None:
                         ),
 
                         categorical_features
-
                     )
 
                 ]
@@ -725,13 +771,9 @@ if uploaded_file is not None:
 
 
             feature_matrix = (
-
                 preprocessor.fit_transform(
-
                     df[required_columns]
-
                 )
-
             )
 
 
@@ -740,13 +782,9 @@ if uploaded_file is not None:
             # =============================================
 
             similarity_matrix = (
-
                 cosine_similarity(
-
                     feature_matrix
-
                 )
-
             )
 
 
@@ -800,17 +838,9 @@ if analyze_button:
         )
 
     elif not (
-
-        product_url.startswith(
-            "http://"
-        )
-
+        product_url.startswith("http://")
         or
-
-        product_url.startswith(
-            "https://"
-        )
-
+        product_url.startswith("https://")
     ):
 
         st.error(
@@ -944,14 +974,9 @@ if "url_product" in st.session_state:
 
     for review in reviews:
 
-        sentiment, score = (
-
-            analyze_sentiment(
-                review
-            )
-
+        sentiment, score = analyze_sentiment(
+            review
         )
-
 
         sentiment_scores.append(
             score
@@ -972,34 +997,20 @@ if "url_product" in st.session_state:
 
 
     total_reviews = (
-
         positive
-
         +
-
         negative
-
         +
-
         neutral
-
     )
 
 
     if sentiment_scores:
 
         average_sentiment = (
-
-            sum(
-                sentiment_scores
-            )
-
+            sum(sentiment_scores)
             /
-
-            len(
-                sentiment_scores
-            )
-
+            len(sentiment_scores)
         )
 
     else:
@@ -1010,58 +1021,38 @@ if "url_product" in st.session_state:
     if total_reviews > 0:
 
         positive_percentage = (
-
             positive
-
             /
-
             total_reviews
-
             *
-
             100
-
         )
 
         neutral_percentage = (
-
             neutral
-
             /
-
             total_reviews
-
             *
-
             100
-
         )
 
         negative_percentage = (
-
             negative
-
             /
-
             total_reviews
-
             *
-
             100
-
         )
 
     else:
 
         positive_percentage = 0
-
         neutral_percentage = 0
-
         negative_percentage = 0
 
 
     # =====================================================
-    # REVIEW INSIGHTS
+    # CUSTOMER REVIEW INSIGHTS
     # =====================================================
 
     st.markdown(
@@ -1114,34 +1105,25 @@ if "url_product" in st.session_state:
         sentiment_chart = pd.DataFrame(
 
             {
-
                 "Sentiment": [
-
                     "Positive",
                     "Neutral",
                     "Negative"
-
                 ],
 
                 "Reviews": [
-
                     positive,
                     neutral,
                     negative
-
                 ]
-
             }
 
         )
 
-
         st.bar_chart(
-
             sentiment_chart.set_index(
                 "Sentiment"
             )
-
         )
 
 
@@ -1152,13 +1134,7 @@ if "url_product" in st.session_state:
     if rating is not None:
 
         rating_score = (
-
-            rating
-
-            /
-
-            5
-
+            rating / 5
         )
 
     else:
@@ -1167,13 +1143,7 @@ if "url_product" in st.session_state:
 
 
     sentiment_score = (
-
-        average_sentiment
-
-        +
-
-        1
-
+        average_sentiment + 1
     ) / 2
 
 
@@ -1229,39 +1199,25 @@ if "url_product" in st.session_state:
 
     buy_score = (
 
-        0.40
-        *
-        rating_score
+        0.40 * rating_score
 
         +
 
-        0.30
-        *
-        sentiment_score
+        0.30 * sentiment_score
 
         +
 
-        0.15
-        *
-        review_confidence
+        0.15 * review_confidence
 
         +
 
-        0.15
-        *
-        risk_score
+        0.15 * risk_score
 
     )
 
 
     buy_percentage = (
-
-        buy_score
-
-        *
-
-        100
-
+        buy_score * 100
     )
 
 
@@ -1358,28 +1314,16 @@ if "url_product" in st.session_state:
             # =============================================
 
             alternatives = df[
-
                 df[
                     "Rating of the product"
-                ]
-
-                >=
-
-                rating
-
+                ] >= rating
             ].copy()
 
 
             alternatives = alternatives[
-
                 alternatives[
                     "Rating of the product"
-                ]
-
-                >
-
-                0
-
+                ] > 0
             ]
 
 
@@ -1400,15 +1344,11 @@ if "url_product" in st.session_state:
                 alternatives[
                     "Rating Score"
                 ] = (
-
                     alternatives[
                         "Rating of the product"
                     ]
-
                     /
-
                     5
-
                 )
 
 
@@ -1419,15 +1359,11 @@ if "url_product" in st.session_state:
                 alternatives[
                     "Sentiment Score"
                 ] = (
-
                     alternatives[
                         "Customer review sentiment score (overall)"
                     ]
-
                     +
-
                     1
-
                 ) / 2
 
 
@@ -1440,17 +1376,12 @@ if "url_product" in st.session_state:
                     alternatives[
                         "Brand Match"
                     ] = (
-
                         alternatives[
                             "Brand of the product"
                         ]
-
                         .str.lower()
-
                         ==
-
                         brand.lower()
-
                     ).astype(float)
 
                 else:
@@ -1498,28 +1429,18 @@ if "url_product" in st.session_state:
                 # =========================================
 
                 alternatives = (
-
                     alternatives
-
                     .sort_values(
-
                         "Alternative Score",
-
                         ascending=False
-
                     )
-
                 )
 
 
                 alternatives = (
-
                     alternatives
-
                     .head(5)
-
                     .copy()
-
                 )
 
 
@@ -1528,34 +1449,22 @@ if "url_product" in st.session_state:
                 # =========================================
 
                 alternative_display = alternatives[
-
                     [
-
                         "Product ID",
-
                         "Brand of the product",
-
                         "Rating of the product",
-
                         "Customer review sentiment score (overall)",
-
                         "Alternative Score"
-
                     ]
-
                 ].copy()
 
 
                 alternative_display.columns = [
 
                     "Product ID",
-
                     "Brand",
-
                     "Rating",
-
                     "Review Sentiment",
-
                     "Alternative Score"
 
                 ]
@@ -1564,52 +1473,36 @@ if "url_product" in st.session_state:
                 alternative_display[
                     "Rating"
                 ] = (
-
                     alternative_display[
                         "Rating"
-                    ]
-
-                    .round(1)
-
+                    ].round(1)
                 )
 
 
                 alternative_display[
                     "Review Sentiment"
                 ] = (
-
                     alternative_display[
                         "Review Sentiment"
-                    ]
-
-                    .round(2)
-
+                    ].round(2)
                 )
 
 
                 alternative_display[
                     "Alternative Score"
                 ] = (
-
                     alternative_display[
                         "Alternative Score"
                     ]
-
                     *
-
                     100
-
                 ).round(2)
 
 
                 st.dataframe(
-
                     alternative_display,
-
                     use_container_width=True,
-
                     hide_index=True
-
                 )
 
 
@@ -1618,80 +1511,53 @@ if "url_product" in st.session_state:
                 # =========================================
 
                 best_alternative = (
-
                     alternatives.iloc[0]
-
                 )
 
 
                 best_rating = (
-
                     best_alternative[
                         "Rating of the product"
                     ]
-
                 )
 
 
                 best_brand = (
-
                     best_alternative[
                         "Brand of the product"
                     ]
-
                 )
 
 
                 rating_difference = (
-
-                    best_rating
-
-                    -
-
-                    rating
-
+                    best_rating - rating
                 )
 
 
                 st.success(
-
                     f"🏆 Best Alternative: "
-
                     f"{best_brand} "
-
                     f"(Product ID "
-
                     f"{int(best_alternative['Product ID'])}) "
-
                     f"— ⭐ {best_rating:.1f}/5"
-
                 )
 
 
                 if rating_difference > 0:
 
                     st.info(
-
                         f"⭐ This alternative has a "
-
                         f"{rating_difference:.1f} point "
-
                         f"higher rating than the product "
-
                         f"you are considering."
-
                     )
 
                 else:
 
                     st.info(
-
                         "⭐ This alternative has the "
-
                         "same rating as the product "
-
                         "you are considering."
-
                     )
 
 
@@ -1710,38 +1576,23 @@ if "url_product" in st.session_state:
                 chart[
                     "Product"
                 ] = (
-
-                    chart[
-                        "Brand"
-                    ]
-
+                    chart["Brand"]
                     +
-
                     " - ID "
-
                     +
-
                     chart[
                         "Product ID"
                     ].astype(str)
-
                 )
 
 
                 chart = (
-
                     chart
-
                     .set_index(
                         "Product"
-                    )
-
-                    [
-
+                    )[
                         "Alternative Score"
-
                     ]
-
                 )
 
 
@@ -1751,11 +1602,9 @@ if "url_product" in st.session_state:
 
 
                 st.caption(
-
                     "Alternative Score = 50% Rating + "
                     "30% Review Sentiment + "
                     "20% Brand Match"
-
                 )
 
 
@@ -1767,7 +1616,7 @@ st.markdown("---")
 
 
 # =========================================================
-# DATASET RECOMMENDATION SYSTEM
+# DATASET PRODUCT RECOMMENDATION
 # =========================================================
 
 st.markdown(
@@ -1834,13 +1683,7 @@ else:
 
 
     selected_index = df.index[
-
-        df["Product ID"]
-
-        ==
-
-        selected_id
-
+        df["Product ID"] == selected_id
     ][0]
 
 
@@ -1888,60 +1731,39 @@ else:
     # =====================================================
 
     similarities = (
-
         similarity_matrix[
             selected_index
         ]
-
     )
 
 
     recommendations = pd.DataFrame(
-
         {
-
             "Product ID":
                 df["Product ID"],
 
             "Similarity":
                 similarities
-
         }
-
     )
 
 
     recommendations = (
-
         recommendations[
-
             recommendations[
                 "Product ID"
-            ]
-
-            !=
-
-            selected_id
-
+            ] != selected_id
         ]
-
         .copy()
-
     )
 
 
     recommendations = (
-
         recommendations.merge(
-
             df,
-
             on="Product ID",
-
             how="left"
-
         )
-
     )
 
 
@@ -1950,45 +1772,33 @@ else:
     # =====================================================
 
     rating_score = (
-
         recommendations[
             "Rating of the product"
         ]
-
         /
-
         5
-
     )
 
 
     sentiment_score = (
-
         recommendations[
             "Customer review sentiment score (overall)"
         ]
-
         +
-
         1
-
     ) / 2
 
 
     recommendations[
         "Product Quality Score"
     ] = (
-
         0.5
         *
         rating_score
-
         +
-
         0.5
         *
         sentiment_score
-
     )
 
 
@@ -1999,52 +1809,38 @@ else:
     recommendations[
         "Recommendation Score"
     ] = (
-
         0.60
         *
         recommendations[
             "Similarity"
         ]
-
         +
-
         0.40
         *
         recommendations[
             "Product Quality Score"
         ]
-
     )
 
 
     recommendations = (
-
         recommendations
-
         .sort_values(
-
             "Recommendation Score",
-
             ascending=False
-
         )
-
     )
 
 
     top_recommendations = (
-
         recommendations
-
         .head(5)
-
         .copy()
-
     )
 
 
     # =====================================================
-    # TOP 5 TABLE
+    # TOP 5 SIMILAR PRODUCTS
     # =====================================================
 
     st.subheader(
@@ -2053,38 +1849,24 @@ else:
 
 
     display = top_recommendations[
-
         [
-
             "Product ID",
-
             "Brand of the product",
-
             "Rating of the product",
-
             "Customer review sentiment score (overall)",
-
             "Similarity",
-
             "Recommendation Score"
-
         ]
-
     ].copy()
 
 
     display.columns = [
 
         "Product ID",
-
         "Brand",
-
         "Rating",
-
         "Review Sentiment",
-
         "Similarity",
-
         "Recommendation Score"
 
     ]
@@ -2093,67 +1875,47 @@ else:
     display[
         "Rating"
     ] = (
-
         display[
             "Rating"
-        ]
-
-        .round(1)
-
+        ].round(1)
     )
 
 
     display[
         "Review Sentiment"
     ] = (
-
         display[
             "Review Sentiment"
-        ]
-
-        .round(2)
-
+        ].round(2)
     )
 
 
     display[
         "Similarity"
     ] = (
-
         display[
             "Similarity"
         ]
-
         *
-
         100
-
     ).round(2)
 
 
     display[
         "Recommendation Score"
     ] = (
-
         display[
             "Recommendation Score"
         ]
-
         *
-
         100
-
     ).round(2)
 
 
     st.dataframe(
-
         display,
-
         use_container_width=True,
-
         hide_index=True
-
     )
 
 
@@ -2172,38 +1934,25 @@ else:
     chart_data[
         "Product"
     ] = (
-
         chart_data[
             "Brand"
         ]
-
         +
-
         " - ID "
-
         +
-
         chart_data[
             "Product ID"
         ].astype(str)
-
     )
 
 
     chart_data = (
-
         chart_data
-
         .set_index(
             "Product"
-        )
-
-        [
-
+        )[
             "Recommendation Score"
-
         ]
-
     )
 
 
@@ -2217,26 +1966,17 @@ else:
     # =====================================================
 
     best = (
-
         top_recommendations.iloc[0]
-
     )
 
 
     st.success(
-
         f"🏆 Best Recommendation: "
-
         f"{best['Brand of the product']} "
-
         f"(Product ID "
-
         f"{int(best['Product ID'])}) "
-
         f"with a recommendation score of "
-
         f"{best['Recommendation Score'] * 100:.2f}%"
-
     )
 
 
@@ -2250,53 +1990,32 @@ else:
 
 
     average_score = (
-
         top_recommendations[
-
             "Recommendation Score"
-
         ]
-
         .mean()
-
         *
-
         100
-
     )
 
 
     average_similarity = (
-
         top_recommendations[
-
             "Similarity"
-
         ]
-
         .mean()
-
         *
-
         100
-
     )
 
 
     best_score = (
-
         top_recommendations[
-
             "Recommendation Score"
-
         ]
-
         .max()
-
         *
-
         100
-
     )
 
 
@@ -2306,46 +2025,35 @@ else:
     with e1:
 
         st.metric(
-
             "Average Top-5 Score",
-
             f"{average_score:.2f}%"
-
         )
 
 
     with e2:
 
         st.metric(
-
             "Average Similarity",
-
             f"{average_similarity:.2f}%"
-
         )
 
 
     with e3:
 
         st.metric(
-
             "Best Recommendation",
-
             f"{best_score:.2f}%"
-
         )
 
 
     st.caption(
-
         "These values represent recommendation and "
         "similarity scores, not classification accuracy."
-
     )
 
 
     # =====================================================
-    # HOW IT WORKS
+    # HOW THE SYSTEM WORKS
     # =====================================================
 
     with st.expander(
@@ -2394,7 +2102,7 @@ else:
 
 
     # =====================================================
-    # DATASET VIEW
+    # COMPLETE DATASET
     # =====================================================
 
     with st.expander(
@@ -2402,13 +2110,9 @@ else:
     ):
 
         st.dataframe(
-
             df,
-
             use_container_width=True,
-
             hide_index=True
-
         )
 
 
@@ -2419,8 +2123,6 @@ else:
 st.markdown("---")
 
 st.caption(
-    "E-Commerce AI Advisor | "
-    "Content-Based Recommendation | "
-    "Sentiment Analysis | "
-    "Better-Rated Alternatives"
+    "E-Commerce Product Recommendation Using Customer Reviews "
+    "| Content-Based Recommendation | Sentiment Analysis"
 )
