@@ -194,7 +194,7 @@ st.markdown(
     """
     <div class="app-header">
 
-        <h1>🛒 E-Commerce AI Advisor</h1>
+        <h1>🛒 E-Commerce Product Recommendation Using Customer Reviews</h1>
 
         <p>
             Analyze customer feedback and discover similar
