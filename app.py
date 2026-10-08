@@ -24,77 +24,116 @@ st.set_page_config(
 
 
 # =========================================================
-# CUSTOM CSS
+# NEUTRAL THEME / CUSTOM CSS
 # =========================================================
 
 st.markdown(
     """
     <style>
 
+    /* Main application */
     .main {
         padding-top: 1rem;
     }
 
-    .hero {
-        padding: 25px;
-        border-radius: 18px;
-        background: linear-gradient(
-            135deg,
-            #667eea 0%,
-            #764ba2 100%
-        );
-        color: white;
-        margin-bottom: 25px;
+    /* Header */
+    .app-header {
+        padding: 28px 30px;
+        border-radius: 14px;
+        background: #2f343a;
+        color: #ffffff;
+        margin-bottom: 28px;
+        border: 1px solid #4a5057;
     }
 
-    .hero h1 {
-        font-size: 42px;
-        margin-bottom: 5px;
-    }
-
-    .hero p {
-        font-size: 18px;
-        opacity: 0.95;
-    }
-
-    .section-title {
-        font-size: 27px;
+    .app-header h1 {
+        margin: 0;
+        font-size: 38px;
         font-weight: 700;
-        margin-top: 20px;
-        margin-bottom: 12px;
+        letter-spacing: -0.5px;
     }
 
-    .info-card {
+    .app-header p {
+        margin-top: 8px;
+        margin-bottom: 0;
+        color: #d6d9dc;
+        font-size: 16px;
+    }
+
+    /* Section headings */
+    .section-title {
+        font-size: 26px;
+        font-weight: 700;
+        color: #30343b;
+        margin-top: 24px;
+        margin-bottom: 14px;
+    }
+
+    /* Cards */
+    .neutral-card {
+        background: #f5f6f7;
+        border: 1px solid #d9dcdf;
+        border-radius: 12px;
         padding: 18px;
-        border-radius: 15px;
-        border: 1px solid rgba(128,128,128,0.25);
-        background-color: rgba(128,128,128,0.06);
         margin-bottom: 12px;
     }
 
     .score-card {
+        background: #f5f6f7;
+        border: 1px solid #d9dcdf;
+        border-radius: 12px;
         padding: 20px;
-        border-radius: 18px;
         text-align: center;
-        border: 1px solid rgba(128,128,128,0.25);
-        background-color: rgba(128,128,128,0.06);
     }
 
-    .score-number {
-        font-size: 32px;
-        font-weight: 800;
-    }
-
-    .small-text {
-        font-size: 14px;
-        opacity: 0.75;
-    }
-
-    .alternative-card {
-        padding: 18px;
-        border-radius: 16px;
-        border: 1px solid rgba(128,128,128,0.25);
+    /* Product recommendation */
+    .recommendation-card {
+        background: #f7f7f7;
+        border: 1px solid #d4d7da;
+        border-radius: 12px;
+        padding: 20px;
+        margin-top: 12px;
         margin-bottom: 12px;
+    }
+
+    /* Small text */
+    .small-text {
+        color: #6b7075;
+        font-size: 14px;
+    }
+
+    /* Horizontal divider */
+    hr {
+        border: none;
+        border-top: 1px solid #d8dade;
+        margin: 30px 0;
+    }
+
+    /* Buttons */
+    .stButton > button {
+        border-radius: 8px;
+        font-weight: 600;
+        border: 1px solid #6b7075;
+    }
+
+    /* Metrics */
+    [data-testid="stMetric"] {
+        background: #f7f7f7;
+        border: 1px solid #d9dcdf;
+        padding: 14px;
+        border-radius: 10px;
+    }
+
+    /* Tables */
+    [data-testid="stDataFrame"] {
+        border: 1px solid #d9dcdf;
+        border-radius: 10px;
+    }
+
+    /* Expander */
+    [data-testid="stExpander"] {
+        border: 1px solid #d9dcdf;
+        border-radius: 10px;
     }
 
     </style>
@@ -109,11 +148,11 @@ st.markdown(
 
 st.markdown(
     """
-    <div class="hero">
+    <div class="app-header">
         <h1>🛒 E-Commerce AI Advisor</h1>
         <p>
-        Analyze products, understand customer reviews,
-        and discover better-rated alternatives.
+            Analyze customer feedback and discover similar
+            products with equal or higher ratings.
         </p>
     </div>
     """,
@@ -121,9 +160,14 @@ st.markdown(
 )
 
 
+# =========================================================
+# INTRODUCTION
+# =========================================================
+
 st.write(
-    "Use the product URL analyzer to evaluate a product, "
-    "or upload your dataset to discover similar products."
+    "The system analyzes product ratings and customer review "
+    "sentiment to provide a purchase recommendation and identify "
+    "better-rated alternatives."
 )
 
 
@@ -136,55 +180,21 @@ analyzer = SentimentIntensityAnalyzer()
 
 def analyze_sentiment(text):
 
-    score = analyzer.polarity_scores(text)["compound"]
+    score = analyzer.polarity_scores(
+        text
+    )["compound"]
 
     if score >= 0.05:
+
         return "Positive", score
 
     elif score <= -0.05:
+
         return "Negative", score
 
     else:
+
         return "Neutral", score
-
-
-# =========================================================
-# EXTRACT PRICE
-# =========================================================
-
-def extract_price(text):
-
-    if not text:
-        return None
-
-    patterns = [
-        r"(?:₹|Rs\.?|INR)\s*([0-9,]+(?:\.[0-9]+)?)",
-        r"([0-9,]+(?:\.[0-9]+)?)\s*(?:₹|INR)"
-    ]
-
-    for pattern in patterns:
-
-        matches = re.findall(
-            pattern,
-            text,
-            flags=re.IGNORECASE
-        )
-
-        for match in matches:
-
-            try:
-
-                value = float(
-                    match.replace(",", "")
-                )
-
-                if value > 0:
-                    return value
-
-            except:
-                pass
-
-    return None
 
 
 # =========================================================
@@ -197,8 +207,11 @@ def extract_rating(text):
         return None
 
     patterns = [
+
         r"([0-5](?:\.[0-9])?)\s*(?:out of\s*5|/5)",
+
         r"([0-5](?:\.[0-9])?)\s*stars?"
+
     ]
 
     for pattern in patterns:
@@ -216,9 +229,11 @@ def extract_rating(text):
                 value = float(match)
 
                 if 0 <= value <= 5:
+
                     return value
 
             except:
+
                 pass
 
     return None
@@ -231,9 +246,11 @@ def extract_rating(text):
 def extract_brand(title):
 
     if not title:
+
         return None
 
     known_brands = [
+
         "Nike",
         "Adidas",
         "Puma",
@@ -254,6 +271,7 @@ def extract_brand(title):
         "Max",
         "Roadster",
         "H&M"
+
     ]
 
     title_lower = title.lower()
@@ -261,6 +279,7 @@ def extract_brand(title):
     for brand in known_brands:
 
         if brand.lower() in title_lower:
+
             return brand
 
     return None
@@ -273,13 +292,18 @@ def extract_brand(title):
 def extract_product_data(url):
 
     headers = {
-        "User-Agent": (
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-            "AppleWebKit/537.36 "
-            "(KHTML, like Gecko) "
-            "Chrome/142.0 Safari/537.36"
-        ),
-        "Accept-Language": "en-US,en;q=0.9"
+
+        "User-Agent":
+            (
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                "AppleWebKit/537.36 "
+                "(KHTML, like Gecko) "
+                "Chrome/142.0 Safari/537.36"
+            ),
+
+        "Accept-Language":
+            "en-US,en;q=0.9"
+
     }
 
     response = requests.get(
@@ -291,11 +315,12 @@ def extract_product_data(url):
     if response.status_code != 200:
 
         return {
+
             "title": None,
             "rating": None,
-            "price": None,
             "brand": None,
             "reviews": []
+
         }
 
     soup = BeautifulSoup(
@@ -341,14 +366,14 @@ def extract_product_data(url):
     )
 
     # -----------------------------------------------------
-    # RATING
+    # PRODUCT RATING
     # -----------------------------------------------------
 
     rating = extract_rating(
         page_text
     )
 
-    # Try structured rating information
+    # Try structured product rating
     if rating is None:
 
         rating_meta = soup.find(
@@ -368,38 +393,8 @@ def extract_product_data(url):
                 )
 
             except:
+
                 pass
-
-    # -----------------------------------------------------
-    # PRICE
-    # -----------------------------------------------------
-
-    price = None
-
-    price_meta = soup.find(
-        attrs={
-            "itemprop": "price"
-        }
-    )
-
-    if price_meta:
-
-        try:
-
-            price = float(
-                price_meta.get(
-                    "content"
-                )
-            )
-
-        except:
-            pass
-
-    if price is None:
-
-        price = extract_price(
-            page_text
-        )
 
     # -----------------------------------------------------
     # REVIEWS
@@ -431,21 +426,20 @@ def extract_product_data(url):
                 strip=True
             )
 
-            # Avoid tiny pieces of text
             if len(text) >= 50:
 
                 reviews.append(
                     text
                 )
 
-    # Remove duplicates
+    # Remove duplicate reviews
     reviews = list(
         dict.fromkeys(
             reviews
         )
     )
 
-    # Limit number of reviews
+    # Analyze maximum 30 reviews internally
     reviews = reviews[:30]
 
     brand = extract_brand(
@@ -453,35 +447,47 @@ def extract_product_data(url):
     )
 
     return {
+
         "title": title,
         "rating": rating,
-        "price": price,
         "brand": brand,
         "reviews": reviews
+
     }
 
 
 # =========================================================
-# LOAD DATASET
+# SIDEBAR
 # =========================================================
 
 st.sidebar.header(
-    "⚙️ Data & Controls"
+    "⚙️ Controls"
+)
+
+st.sidebar.write(
+    "Upload your recommendation dataset."
 )
 
 uploaded_file = st.sidebar.file_uploader(
-    "Upload Recommendation Dataset",
+    "Upload CSV Dataset",
     type=["csv"]
 )
 
 
 # =========================================================
-# DATASET PROCESSING
+# DATASET VARIABLES
 # =========================================================
 
 df = None
+
 feature_matrix = None
+
 similarity_matrix = None
+
+
+# =========================================================
+# LOAD DATASET
+# =========================================================
 
 if uploaded_file is not None:
 
@@ -495,29 +501,47 @@ if uploaded_file is not None:
             drop=True
         )
 
-        # Product ID
+        # Create Product ID
         df["Product ID"] = (
             df.index + 1
         )
 
+        # -------------------------------------------------
+        # NUMERICAL FEATURES
+        # -------------------------------------------------
+
         numeric_features = [
 
             "Number of clicks on similar products",
+
             "Number of similar products purchased so far",
+
             "Average rating given to similar products",
+
             "Median purchasing price (in rupees)",
+
             "Rating of the product",
+
             "Customer review sentiment score (overall)",
+
             "Price of the product"
 
         ]
 
+        # -------------------------------------------------
+        # CATEGORICAL FEATURES
+        # -------------------------------------------------
+
         categorical_features = [
 
             "Gender",
+
             "Brand of the product",
+
             "Holiday",
+
             "Season",
+
             "Geographical locations"
 
         ]
@@ -528,10 +552,16 @@ if uploaded_file is not None:
             categorical_features
         )
 
+        # -------------------------------------------------
+        # CHECK REQUIRED COLUMNS
+        # -------------------------------------------------
+
         missing_columns = [
 
             column
+
             for column in required_columns
+
             if column not in df.columns
 
         ]
@@ -539,7 +569,7 @@ if uploaded_file is not None:
         if missing_columns:
 
             st.sidebar.error(
-                "Dataset is missing required columns."
+                "Some required columns are missing."
             )
 
             st.sidebar.write(
@@ -550,7 +580,10 @@ if uploaded_file is not None:
 
         else:
 
-            # Numeric cleaning
+            # -------------------------------------------------
+            # CLEAN NUMERICAL FEATURES
+            # -------------------------------------------------
+
             for column in numeric_features:
 
                 df[column] = pd.to_numeric(
@@ -558,18 +591,25 @@ if uploaded_file is not None:
                     errors="coerce"
                 ).fillna(0)
 
-            # Categorical cleaning
+            # -------------------------------------------------
+            # CLEAN CATEGORICAL FEATURES
+            # -------------------------------------------------
+
             for column in categorical_features:
 
                 df[column] = (
+
                     df[column]
+
                     .fillna("Unknown")
+
                     .astype(str)
+
                 )
 
-            # ------------------------------------------------
+            # -------------------------------------------------
             # PREPROCESSING
-            # ------------------------------------------------
+            # -------------------------------------------------
 
             preprocessor = ColumnTransformer(
 
@@ -577,15 +617,19 @@ if uploaded_file is not None:
 
                     (
                         "numeric",
+
                         StandardScaler(),
+
                         numeric_features
                     ),
 
                     (
                         "categorical",
+
                         OneHotEncoder(
                             handle_unknown="ignore"
                         ),
+
                         categorical_features
                     )
 
@@ -599,9 +643,9 @@ if uploaded_file is not None:
                 )
             )
 
-            # ------------------------------------------------
+            # -------------------------------------------------
             # COSINE SIMILARITY
-            # ------------------------------------------------
+            # -------------------------------------------------
 
             similarity_matrix = (
                 cosine_similarity(
@@ -619,7 +663,7 @@ if uploaded_file is not None:
 
 
 # =========================================================
-# PRODUCT URL ANALYZER
+# URL PRODUCT ANALYZER
 # =========================================================
 
 st.markdown(
@@ -628,7 +672,8 @@ st.markdown(
 )
 
 st.write(
-    "Paste the URL of an actual product page."
+    "Paste the URL of an actual product page to analyze "
+    "its rating and customer review sentiment."
 )
 
 product_url = st.text_input(
@@ -642,6 +687,10 @@ analyze_button = st.button(
     use_container_width=True
 )
 
+
+# =========================================================
+# ANALYZE URL
+# =========================================================
 
 if analyze_button:
 
@@ -658,14 +707,14 @@ if analyze_button:
     ):
 
         st.error(
-            "Please enter a valid URL starting with "
+            "Please enter a valid URL beginning with "
             "http:// or https://"
         )
 
     else:
 
         with st.spinner(
-            "Analyzing product and customer reviews..."
+            "Analyzing product..."
         ):
 
             try:
@@ -676,27 +725,6 @@ if analyze_button:
                     )
                 )
 
-                title = product_data[
-                    "title"
-                ]
-
-                rating = product_data[
-                    "rating"
-                ]
-
-                price = product_data[
-                    "price"
-                ]
-
-                brand = product_data[
-                    "brand"
-                ]
-
-                reviews = product_data[
-                    "reviews"
-                ]
-
-                # Save in session state
                 st.session_state[
                     "url_product"
                 ] = product_data
@@ -704,12 +732,12 @@ if analyze_button:
             except Exception as e:
 
                 st.error(
-                    f"Unable to analyze the URL: {e}"
+                    f"Unable to analyze the product: {e}"
                 )
 
 
 # =========================================================
-# SHOW URL PRODUCT
+# DISPLAY URL PRODUCT
 # =========================================================
 
 if "url_product" in st.session_state:
@@ -726,10 +754,6 @@ if "url_product" in st.session_state:
         "rating"
     ]
 
-    price = product_data[
-        "price"
-    ]
-
     brand = product_data[
         "brand"
     ]
@@ -738,8 +762,12 @@ if "url_product" in st.session_state:
         "reviews"
     ]
 
+    # -----------------------------------------------------
+    # PRODUCT INFORMATION
+    # -----------------------------------------------------
+
     st.markdown(
-        '<div class="section-title">📦 Product Analysis</div>',
+        '<div class="section-title">📦 Product Information</div>',
         unsafe_allow_html=True
     )
 
@@ -749,52 +777,38 @@ if "url_product" in st.session_state:
             title
         )
 
-    # -----------------------------------------------------
-    # BASIC PRODUCT METRICS
-    # -----------------------------------------------------
+    else:
 
-    c1, c2, c3, c4 = st.columns(4)
+        st.info(
+            "Product name could not be extracted."
+        )
 
-    with c1:
+    p1, p2, p3 = st.columns(3)
+
+    with p1:
 
         if rating is not None:
 
             st.metric(
-                "⭐ Rating",
+                "⭐ Product Rating",
                 f"{rating:.1f}/5"
             )
 
         else:
 
             st.metric(
-                "⭐ Rating",
+                "⭐ Product Rating",
                 "Not found"
             )
 
-    with c2:
-
-        if price is not None:
-
-            st.metric(
-                "💰 Price",
-                f"₹{price:,.0f}"
-            )
-
-        else:
-
-            st.metric(
-                "💰 Price",
-                "Not found"
-            )
-
-    with c3:
+    with p2:
 
         st.metric(
-            "💬 Reviews Found",
+            "💬 Reviews Analyzed",
             len(reviews)
         )
 
-    with c4:
+    with p3:
 
         st.metric(
             "🏷️ Brand",
@@ -806,12 +820,12 @@ if "url_product" in st.session_state:
     # -----------------------------------------------------
 
     positive = 0
+
     negative = 0
+
     neutral = 0
 
     sentiment_scores = []
-
-    review_results = []
 
     for review in reviews:
 
@@ -823,14 +837,6 @@ if "url_product" in st.session_state:
 
         sentiment_scores.append(
             score
-        )
-
-        review_results.append(
-            {
-                "Review": review,
-                "Sentiment": sentiment,
-                "Score": score
-            }
         )
 
         if sentiment == "Positive":
@@ -845,18 +851,6 @@ if "url_product" in st.session_state:
 
             neutral += 1
 
-    if sentiment_scores:
-
-        average_sentiment = (
-            sum(sentiment_scores)
-            /
-            len(sentiment_scores)
-        )
-
-    else:
-
-        average_sentiment = 0
-
     total_reviews = (
         positive
         +
@@ -865,37 +859,65 @@ if "url_product" in st.session_state:
         neutral
     )
 
+    if sentiment_scores:
+
+        average_sentiment = (
+
+            sum(sentiment_scores)
+
+            /
+
+            len(sentiment_scores)
+
+        )
+
+    else:
+
+        average_sentiment = 0
+
     if total_reviews > 0:
 
         positive_percentage = (
+
             positive
             /
             total_reviews
             *
             100
-        )
 
-        negative_percentage = (
-            negative
-            /
-            total_reviews
-            *
-            100
         )
 
         neutral_percentage = (
+
             neutral
             /
             total_reviews
             *
             100
+
+        )
+
+        negative_percentage = (
+
+            negative
+            /
+            total_reviews
+            *
+            100
+
         )
 
     else:
 
         positive_percentage = 0
-        negative_percentage = 0
+
         neutral_percentage = 0
+
+        negative_percentage = 0
+
+    # -----------------------------------------------------
+    # REVIEW INSIGHTS
+    # -----------------------------------------------------
 
     st.markdown(
         '<div class="section-title">💬 Customer Review Insights</div>',
@@ -928,8 +950,44 @@ if "url_product" in st.session_state:
     with s4:
 
         st.metric(
-            "📊 Avg Sentiment",
+            "📊 Average Sentiment",
             f"{average_sentiment:.2f}"
+        )
+
+    # -----------------------------------------------------
+    # SENTIMENT CHART
+    # -----------------------------------------------------
+
+    if total_reviews > 0:
+
+        sentiment_chart = pd.DataFrame(
+
+            {
+
+                "Sentiment": [
+
+                    "Positive",
+                    "Neutral",
+                    "Negative"
+
+                ],
+
+                "Reviews": [
+
+                    positive,
+                    neutral,
+                    negative
+
+                ]
+
+            }
+
+        )
+
+        st.bar_chart(
+            sentiment_chart.set_index(
+                "Sentiment"
+            )
         )
 
     # -----------------------------------------------------
@@ -947,9 +1005,12 @@ if "url_product" in st.session_state:
         rating_score = 0
 
     sentiment_score = (
+
         average_sentiment + 1
+
     ) / 2
 
+    # Review confidence
     if total_reviews >= 20:
 
         review_confidence = 1.0
@@ -970,6 +1031,7 @@ if "url_product" in st.session_state:
 
         review_confidence = 0
 
+    # Risk score
     if negative_percentage <= 10:
 
         risk_score = 1.0
@@ -989,11 +1051,17 @@ if "url_product" in st.session_state:
     buy_score = (
 
         0.40 * rating_score
+
         +
+
         0.30 * sentiment_score
+
         +
+
         0.15 * review_confidence
+
         +
+
         0.15 * risk_score
 
     )
@@ -1001,6 +1069,10 @@ if "url_product" in st.session_state:
     buy_percentage = (
         buy_score * 100
     )
+
+    # -----------------------------------------------------
+    # PURCHASE DECISION
+    # -----------------------------------------------------
 
     st.markdown(
         '<div class="section-title">🛍️ Purchase Decision</div>',
@@ -1019,21 +1091,21 @@ if "url_product" in st.session_state:
     with b2:
 
         st.metric(
-            "⭐ Rating Contribution",
+            "⭐ Rating Score",
             f"{rating_score * 100:.1f}%"
         )
 
     with b3:
 
         st.metric(
-            "💬 Sentiment Contribution",
+            "💬 Sentiment Score",
             f"{sentiment_score * 100:.1f}%"
         )
 
     if buy_percentage >= 75:
 
         st.success(
-            "✅ BUY — This product has strong "
+            "✅ BUY — The product has strong "
             "overall customer feedback."
         )
 
@@ -1047,42 +1119,14 @@ if "url_product" in st.session_state:
     else:
 
         st.error(
-            "❌ NOT RECOMMENDED — The product shows "
-            "weak rating or customer sentiment."
+            "❌ NOT RECOMMENDED — The product has "
+            "relatively weak rating or sentiment."
         )
 
     st.caption(
         "Buy Score = 40% Rating + 30% Sentiment + "
         "15% Review Confidence + 15% Risk"
     )
-
-    # -----------------------------------------------------
-    # SENTIMENT CHART
-    # -----------------------------------------------------
-
-    if total_reviews > 0:
-
-        sentiment_chart = pd.DataFrame(
-            {
-                "Sentiment": [
-                    "Positive",
-                    "Neutral",
-                    "Negative"
-                ],
-
-                "Reviews": [
-                    positive,
-                    neutral,
-                    negative
-                ]
-            }
-        )
-
-        st.bar_chart(
-            sentiment_chart.set_index(
-                "Sentiment"
-            )
-        )
 
     # =====================================================
     # BETTER ALTERNATIVES
@@ -1091,19 +1135,23 @@ if "url_product" in st.session_state:
     if df is not None:
 
         st.markdown(
-            '<div class="section-title">🔄 Better Similar Alternatives</div>',
+            '<div class="section-title">🔄 Better Rated Alternatives</div>',
             unsafe_allow_html=True
         )
 
         if rating is None:
 
             st.info(
-                "A rating could not be extracted from "
-                "the URL, so same/higher-rating filtering "
-                "cannot be performed."
+                "A product rating could not be extracted "
+                "from the URL, so same/higher-rated "
+                "alternatives cannot be identified."
             )
 
         else:
+
+            # -------------------------------------------------
+            # FILTER SAME OR HIGHER RATING
+            # -------------------------------------------------
 
             alternatives = df[
                 df[
@@ -1111,7 +1159,6 @@ if "url_product" in st.session_state:
                 ] >= rating
             ].copy()
 
-            # Don't recommend products with zero/invalid ratings
             alternatives = alternatives[
                 alternatives[
                     "Rating of the product"
@@ -1121,29 +1168,33 @@ if "url_product" in st.session_state:
             if alternatives.empty:
 
                 st.warning(
-                    "No products in your dataset have "
-                    "the same or higher rating."
+                    "No products in the uploaded dataset "
+                    "have the same or higher rating."
                 )
 
             else:
 
-                # -----------------------------------------
+                # -------------------------------------------------
                 # RATING SCORE
-                # -----------------------------------------
+                # -------------------------------------------------
 
                 alternatives[
                     "Rating Score"
                 ] = (
+
                     alternatives[
                         "Rating of the product"
                     ]
+
                     /
+
                     5
+
                 )
 
-                # -----------------------------------------
+                # -------------------------------------------------
                 # SENTIMENT SCORE
-                # -----------------------------------------
+                # -------------------------------------------------
 
                 alternatives[
                     "Sentiment Score"
@@ -1152,46 +1203,16 @@ if "url_product" in st.session_state:
                     alternatives[
                         "Customer review sentiment score (overall)"
                     ]
+
                     +
+
                     1
 
                 ) / 2
 
-                # -----------------------------------------
-                # PRICE SCORE
-                # -----------------------------------------
-
-                if price is not None:
-
-                    price_difference = (
-                        abs(
-                            alternatives[
-                                "Price of the product"
-                            ]
-                            -
-                            price
-                        )
-                    )
-
-                    price_score = 1 / (
-                        1
-                        +
-                        price_difference
-                        /
-                        max(price, 1)
-                    )
-
-                else:
-
-                    price_score = 0.5
-
-                alternatives[
-                    "Price Score"
-                ] = price_score
-
-                # -----------------------------------------
+                # -------------------------------------------------
                 # BRAND MATCH
-                # -----------------------------------------
+                # -------------------------------------------------
 
                 if brand:
 
@@ -1214,15 +1235,15 @@ if "url_product" in st.session_state:
                         "Brand Match"
                     ] = 0
 
-                # -----------------------------------------
+                # -------------------------------------------------
                 # ALTERNATIVE SCORE
-                # -----------------------------------------
+                # -------------------------------------------------
 
                 alternatives[
                     "Alternative Score"
                 ] = (
 
-                    0.40
+                    0.50
                     *
                     alternatives[
                         "Rating Score"
@@ -1230,7 +1251,7 @@ if "url_product" in st.session_state:
 
                     +
 
-                    0.25
+                    0.30
                     *
                     alternatives[
                         "Sentiment Score"
@@ -1241,62 +1262,91 @@ if "url_product" in st.session_state:
                     0.20
                     *
                     alternatives[
-                        "Price Score"
-                    ]
-
-                    +
-
-                    0.15
-                    *
-                    alternatives[
                         "Brand Match"
                     ]
 
                 )
 
-                # -----------------------------------------
+                # -------------------------------------------------
                 # SORT
-                # -----------------------------------------
+                # -------------------------------------------------
 
                 alternatives = (
+
                     alternatives
+
                     .sort_values(
                         "Alternative Score",
                         ascending=False
                     )
+
                 )
 
                 alternatives = (
+
                     alternatives
+
                     .head(5)
+
                     .copy()
+
                 )
 
-                # -----------------------------------------
-                # ALTERNATIVE TABLE
-                # -----------------------------------------
+                # -------------------------------------------------
+                # DISPLAY TABLE
+                # -------------------------------------------------
 
                 alternative_display = alternatives[
+
                     [
+
                         "Product ID",
+
                         "Brand of the product",
+
                         "Rating of the product",
-                        "Price of the product",
+
                         "Customer review sentiment score (overall)",
+
                         "Alternative Score"
+
                     ]
+
                 ].copy()
 
                 alternative_display.columns = [
 
                     "Product ID",
+
                     "Brand",
+
                     "Rating",
-                    "Price",
+
                     "Review Sentiment",
+
                     "Alternative Score"
 
                 ]
+
+                alternative_display[
+                    "Rating"
+                ] = (
+
+                    alternative_display[
+                        "Rating"
+                    ].round(1)
+
+                )
+
+                alternative_display[
+                    "Review Sentiment"
+                ] = (
+
+                    alternative_display[
+                        "Review Sentiment"
+                    ].round(2)
+
+                )
 
                 alternative_display[
                     "Alternative Score"
@@ -1307,7 +1357,6 @@ if "url_product" in st.session_state:
                     ]
                     *
                     100
-
                 ).round(2)
 
                 st.dataframe(
@@ -1316,9 +1365,9 @@ if "url_product" in st.session_state:
                     hide_index=True
                 )
 
-                # -----------------------------------------
+                # -------------------------------------------------
                 # BEST ALTERNATIVE
-                # -----------------------------------------
+                # -------------------------------------------------
 
                 best_alternative = (
                     alternatives.iloc[0]
@@ -1327,12 +1376,6 @@ if "url_product" in st.session_state:
                 best_rating = (
                     best_alternative[
                         "Rating of the product"
-                    ]
-                )
-
-                best_price = (
-                    best_alternative[
-                        "Price of the product"
                     ]
                 )
 
@@ -1356,75 +1399,67 @@ if "url_product" in st.session_state:
                     f"— ⭐ {best_rating:.1f}/5"
                 )
 
-                if price is not None:
+                if rating_difference > 0:
 
-                    if best_price < price:
+                    st.info(
+                        f"⭐ This alternative has a "
+                        f"{rating_difference:.1f} point "
+                        f"higher rating than the product "
+                        f"you are considering."
+                    )
 
-                        saving = (
-                            price
-                            -
-                            best_price
-                        )
+                else:
 
-                        st.info(
-                            f"💰 This alternative is "
-                            f"₹{saving:,.0f} cheaper "
-                            f"and has "
-                            f"{rating_difference:+.1f} "
-                            f"higher rating points."
-                        )
+                    st.info(
+                        "⭐ This alternative has the "
+                        "same rating as the product "
+                        "you are considering."
+                    )
 
-                    elif best_price > price:
-
-                        extra = (
-                            best_price
-                            -
-                            price
-                        )
-
-                        st.info(
-                            f"💰 This alternative costs "
-                            f"₹{extra:,.0f} more but has "
-                            f"{rating_difference:+.1f} "
-                            f"rating points."
-                        )
-
-                    else:
-
-                        st.info(
-                            "💰 This alternative has "
-                            "approximately the same price "
-                            "with a higher/equal rating."
-                        )
-
-                # -----------------------------------------
+                # -------------------------------------------------
                 # ALTERNATIVE CHART
-                # -----------------------------------------
+                # -------------------------------------------------
+
+                st.subheader(
+                    "📊 Alternative Scores"
+                )
 
                 chart = alternative_display.copy()
 
-                chart["Product"] = (
+                chart[
+                    "Product"
+                ] = (
 
                     chart[
                         "Brand"
                     ]
+
                     +
+
                     " - ID "
+
                     +
+
                     chart[
                         "Product ID"
                     ].astype(str)
 
                 )
 
-                chart = chart.set_index(
-                    "Product"
-                )[
-                    "Alternative Score"
-                ]
+                chart = (
 
-                st.subheader(
-                    "📊 Alternative Comparison"
+                    chart
+
+                    .set_index(
+                        "Product"
+                    )
+
+                    [
+
+                        "Alternative Score"
+
+                    ]
+
                 )
 
                 st.bar_chart(
@@ -1432,69 +1467,9 @@ if "url_product" in st.session_state:
                 )
 
                 st.caption(
-                    "Alternative Score combines rating, "
-                    "review sentiment, price similarity "
-                    "and brand match."
+                    "Alternative Score = 50% Rating + "
+                    "30% Review Sentiment + 20% Brand Match"
                 )
-
-    # -----------------------------------------------------
-    # REVIEWS
-    # -----------------------------------------------------
-
-    if reviews:
-
-        st.markdown(
-            '<div class="section-title">📝 Reviews Analyzed</div>',
-            unsafe_allow_html=True
-        )
-
-        for i, result in enumerate(
-            review_results,
-            1
-        ):
-
-            sentiment = result[
-                "Sentiment"
-            ]
-
-            score = result[
-                "Score"
-            ]
-
-            review = result[
-                "Review"
-            ]
-
-            if sentiment == "Positive":
-
-                icon = "😊"
-
-            elif sentiment == "Negative":
-
-                icon = "😞"
-
-            else:
-
-                icon = "😐"
-
-            with st.expander(
-                f"{icon} Review {i} — {sentiment}"
-            ):
-
-                st.write(
-                    review
-                )
-
-                st.caption(
-                    f"Sentiment score: {score:.2f}"
-                )
-
-    else:
-
-        st.warning(
-            "No customer review text could be extracted "
-            "from this webpage."
-        )
 
 
 # =========================================================
@@ -1524,7 +1499,7 @@ else:
 
     st.write(
         "Select a product from your dataset to find "
-        "the top 5 similar products."
+        "the most similar products."
     )
 
     # -----------------------------------------------------
@@ -1577,7 +1552,7 @@ else:
         "Selected Product"
     )
 
-    p1, p2, p3, p4 = st.columns(4)
+    p1, p2, p3 = st.columns(3)
 
     with p1:
 
@@ -1598,53 +1573,66 @@ else:
     with p3:
 
         st.metric(
-            "💰 Price",
-            f"₹{selected_product['Price of the product']:,.0f}"
-        )
-
-    with p4:
-
-        st.metric(
-            "💬 Sentiment",
+            "💬 Review Sentiment",
             f"{selected_product['Customer review sentiment score (overall)']:.2f}"
         )
 
     # -----------------------------------------------------
-    # SIMILARITY
+    # COSINE SIMILARITY
     # -----------------------------------------------------
 
     similarities = (
+
         similarity_matrix[
             selected_index
         ]
+
     )
 
     recommendations = pd.DataFrame(
+
         {
+
             "Product ID":
                 df["Product ID"],
 
             "Similarity":
                 similarities
+
         }
+
     )
 
     recommendations = (
+
         recommendations[
+
             recommendations[
                 "Product ID"
             ]
-            != selected_id
+
+            !=
+
+            selected_id
+
         ]
+
         .copy()
+
     )
 
     recommendations = (
+
         recommendations.merge(
+
             df,
+
             on="Product ID",
+
             how="left"
+
         )
+
     )
 
     # -----------------------------------------------------
@@ -1652,11 +1640,15 @@ else:
     # -----------------------------------------------------
 
     rating_score = (
+
         recommendations[
             "Rating of the product"
         ]
+
         /
+
         5
+
     )
 
     sentiment_score = (
@@ -1664,7 +1656,9 @@ else:
         recommendations[
             "Customer review sentiment score (overall)"
         ]
+
         +
+
         1
 
     ) / 2
@@ -1673,14 +1667,20 @@ else:
         "Product Quality Score"
     ] = (
 
-        0.5 * rating_score
+        0.5
+        *
+        rating_score
+
         +
-        0.5 * sentiment_score
+
+        0.5
+        *
+        sentiment_score
 
     )
 
     # -----------------------------------------------------
-    # FINAL SCORE
+    # FINAL RECOMMENDATION SCORE
     # -----------------------------------------------------
 
     recommendations[
@@ -1704,21 +1704,28 @@ else:
     )
 
     recommendations = (
+
         recommendations
+
         .sort_values(
             "Recommendation Score",
             ascending=False
         )
+
     )
 
     top_recommendations = (
+
         recommendations
+
         .head(5)
+
         .copy()
+
     )
 
     # -----------------------------------------------------
-    # TOP 5
+    # TOP 5 TABLE
     # -----------------------------------------------------
 
     st.subheader(
@@ -1726,28 +1733,60 @@ else:
     )
 
     display = top_recommendations[
+
         [
+
             "Product ID",
+
             "Brand of the product",
+
             "Rating of the product",
-            "Price of the product",
+
             "Customer review sentiment score (overall)",
+
             "Similarity",
+
             "Recommendation Score"
+
         ]
+
     ].copy()
 
     display.columns = [
 
         "Product ID",
+
         "Brand",
+
         "Rating",
-        "Price",
+
         "Review Sentiment",
+
         "Similarity",
+
         "Recommendation Score"
 
     ]
+
+    display[
+        "Rating"
+    ] = (
+
+        display[
+            "Rating"
+        ].round(1)
+
+    )
+
+    display[
+        "Review Sentiment"
+    ] = (
+
+        display[
+            "Review Sentiment"
+        ].round(2)
+
+    )
 
     display[
         "Similarity"
@@ -1756,7 +1795,9 @@ else:
         display[
             "Similarity"
         ]
+
         *
+
         100
 
     ).round(2)
@@ -1768,7 +1809,9 @@ else:
         display[
             "Recommendation Score"
         ]
+
         *
+
         100
 
     ).round(2)
@@ -1780,7 +1823,7 @@ else:
     )
 
     # -----------------------------------------------------
-    # CHART
+    # RECOMMENDATION CHART
     # -----------------------------------------------------
 
     st.subheader(
@@ -1796,9 +1839,13 @@ else:
         chart_data[
             "Brand"
         ]
+
         +
+
         " - ID "
+
         +
+
         chart_data[
             "Product ID"
         ].astype(str)
@@ -1806,12 +1853,19 @@ else:
     )
 
     chart_data = (
+
         chart_data
+
         .set_index(
             "Product"
-        )[
+        )
+
+        [
+
             "Recommendation Score"
+
         ]
+
     )
 
     st.bar_chart(
@@ -1836,7 +1890,7 @@ else:
     )
 
     # -----------------------------------------------------
-    # EVALUATION
+    # SYSTEM EVALUATION
     # -----------------------------------------------------
 
     st.subheader(
@@ -1844,30 +1898,45 @@ else:
     )
 
     average_score = (
+
         top_recommendations[
             "Recommendation Score"
         ]
+
         .mean()
+
         *
+
         100
+
     )
 
     average_similarity = (
+
         top_recommendations[
             "Similarity"
         ]
+
         .mean()
+
         *
+
         100
+
     )
 
     best_score = (
+
         top_recommendations[
             "Recommendation Score"
         ]
+
         .max()
+
         *
+
         100
+
     )
 
     e1, e2, e3 = st.columns(3)
@@ -1894,12 +1963,12 @@ else:
         )
 
     st.caption(
-        "These are recommendation/similarity scores, "
-        "not classification accuracy."
+        "These values represent recommendation and "
+        "similarity scores, not classification accuracy."
     )
 
     # -----------------------------------------------------
-    # EXPLANATION
+    # HOW IT WORKS
     # -----------------------------------------------------
 
     with st.expander(
@@ -1923,12 +1992,13 @@ else:
             • Season
             • Geographical location
 
-            Numerical features are standardized using StandardScaler.
+            Numerical features are standardized using
+            StandardScaler.
 
             Categorical features are converted into numerical
             representations using OneHotEncoder.
 
-            Cosine similarity is then used to find products
+            Cosine similarity is then used to identify products
             with similar characteristics.
 
             The final Recommendation Score combines:
@@ -1937,16 +2007,16 @@ else:
 
             40% Product Quality
 
-            Product Quality is based on:
+            Product Quality is calculated from:
 
-            50% Rating
+            50% Product Rating
 
-            50% Review Sentiment
+            50% Customer Review Sentiment
             """
         )
 
     # -----------------------------------------------------
-    # COMPLETE DATASET
+    # DATASET VIEW
     # -----------------------------------------------------
 
     with st.expander(
@@ -1967,8 +2037,8 @@ else:
 st.markdown("---")
 
 st.caption(
-    "🛒 E-Commerce AI Advisor | "
+    "E-Commerce AI Advisor | "
     "Content-Based Recommendation | "
-    "Review Sentiment Analysis | "
-    "Better Product Alternatives"
+    "Sentiment Analysis | "
+    "Better-Rated Alternatives"
 )
