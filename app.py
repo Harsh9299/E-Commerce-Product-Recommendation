@@ -219,12 +219,175 @@ def clean_product_url(url):
 
 
 # =========================================================
+# GET AMAZON ASIN
+# =========================================================
+
+def get_amazon_asin(url):
+
+    match = re.search(
+        r"/(?:dp|gp/product|product)/([A-Z0-9]{10})",
+        url,
+        flags=re.IGNORECASE
+    )
+
+    if match:
+        return match.group(1).upper()
+
+    return None
+
+
+# =========================================================
+# CHECK AMAZON PRODUCT PAGE
+# =========================================================
+
+def looks_like_amazon_product_page(text):
+
+    if not text:
+        return False
+
+    lower = text.lower()
+
+    indicators = [
+        "add to cart",
+        "buy now",
+        "customer reviews",
+        "customer review",
+        "average customer review",
+        "product details",
+        "about this item",
+        "delivery",
+        "in stock"
+    ]
+
+    score = sum(
+        1 for item in indicators
+        if item in lower
+    )
+
+    return score >= 2
+
+
+# =========================================================
 # SAFE WEB REQUEST
 # =========================================================
 
-def request_webpage(url, timeout=25, retries=3):
+def request_webpage(url, timeout=30, retries=3):
 
     clean_url = clean_product_url(url)
+
+    parsed = urlparse(clean_url)
+    host = parsed.netloc.lower()
+
+    # =====================================================
+    # AMAZON
+    # =====================================================
+
+    if "amazon." in host:
+
+        amazon_headers = {
+            "User-Agent": (
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) "
+                "Chrome/142.0.0.0 Safari/537.36"
+            ),
+            "Accept": (
+                "text/html,application/xhtml+xml,"
+                "application/xml;q=0.9,image/avif,image/webp,"
+                "*/*;q=0.8"
+            ),
+            "Accept-Language": "en-IN,en;q=0.9",
+            "Cache-Control": "no-cache",
+            "Pragma": "no-cache",
+            "Upgrade-Insecure-Requests": "1",
+            "Sec-Fetch-Dest": "document",
+            "Sec-Fetch-Mode": "navigate",
+            "Sec-Fetch-Site": "none",
+            "Sec-Fetch-User": "?1"
+        }
+
+        session = requests.Session()
+        session.headers.update(amazon_headers)
+
+        for attempt in range(retries):
+
+            try:
+
+                response = session.get(
+                    clean_url,
+                    timeout=timeout,
+                    allow_redirects=True
+                )
+
+                if response.status_code == 200:
+
+                    if looks_like_amazon_product_page(
+                        response.text
+                    ):
+                        return response
+
+                if response.status_code in (
+                    429,
+                    500,
+                    502,
+                    503,
+                    504
+                ):
+
+                    if attempt < retries - 1:
+
+                        time.sleep(
+                            2 * (attempt + 1)
+                        )
+
+                        continue
+
+            except requests.exceptions.RequestException:
+
+                if attempt < retries - 1:
+
+                    time.sleep(
+                        2 * (attempt + 1)
+                    )
+
+        # =================================================
+        # JINA READER FALLBACK
+        # =================================================
+
+        jina_url = (
+            "https://r.jina.ai/"
+            + clean_url
+        )
+
+        try:
+
+            jina_response = requests.get(
+                jina_url,
+                headers={
+                    "User-Agent":
+                        "Mozilla/5.0"
+                },
+                timeout=45
+            )
+
+            if (
+                jina_response.status_code == 200
+                and len(jina_response.text) > 1000
+            ):
+
+                return jina_response
+
+        except requests.exceptions.RequestException:
+            pass
+
+        raise RuntimeError(
+            "Amazon is blocking automated access to "
+            "this product page. Please try again later "
+            "or use another accessible product URL."
+        )
+
+    # =====================================================
+    # OTHER WEBSITES
+    # =====================================================
 
     last_status = None
 
@@ -245,47 +408,44 @@ def request_webpage(url, timeout=25, retries=3):
                 return response
 
             if response.status_code in (
-                429, 500, 502, 503, 504
+                429,
+                500,
+                502,
+                503,
+                504
             ):
 
                 if attempt < retries - 1:
+
                     time.sleep(
                         1.5 * (attempt + 1)
                     )
+
                     continue
 
-            if response.status_code in (401, 403):
+            if response.status_code in (
+                401,
+                403
+            ):
 
                 raise RuntimeError(
                     f"The website blocked automated access "
                     f"(HTTP {response.status_code})."
                 )
 
-            raise RuntimeError(
-                f"The website returned HTTP "
-                f"{response.status_code}."
-            )
-
         except requests.exceptions.RequestException as e:
 
             if attempt < retries - 1:
+
                 time.sleep(
                     1.5 * (attempt + 1)
                 )
+
                 continue
 
             raise RuntimeError(
-                f"Network error while opening the "
-                f"product page: {e}"
+                f"Network error: {e}"
             )
-
-    if last_status == 503:
-
-        raise RuntimeError(
-            "The shopping website returned HTTP 503 "
-            "(Service Unavailable). The website is "
-            "temporarily refusing automated requests."
-        )
 
     raise RuntimeError(
         f"The product page could not be accessed "
@@ -322,9 +482,15 @@ def extract_rating(text):
         return None
 
     patterns = [
-        r"([0-5](?:\.[0-9])?)\s*(?:out of\s*5|/5)",
+
+        r"([0-5](?:\.[0-9])?)\s*"
+        r"(?:out\s*of\s*5|/5)",
+
         r"([0-5](?:\.[0-9])?)\s*stars?",
-        r"rating[^0-9]{0,20}([0-5](?:\.[0-9])?)"
+
+        r"rating[^0-9]{0,30}"
+        r"([0-5](?:\.[0-9])?)"
+
     ]
 
     for pattern in patterns:
@@ -342,9 +508,11 @@ def extract_rating(text):
                 value = float(match)
 
                 if 0 <= value <= 5:
+
                     return value
 
-            except:
+            except (ValueError, TypeError):
+
                 pass
 
     return None
@@ -354,7 +522,7 @@ def extract_rating(text):
 # TEXT CLEANING
 # =========================================================
 
-def clean_text(text, max_length=300):
+def clean_text(text, max_length=1000):
 
     if not text:
         return ""
@@ -362,87 +530,19 @@ def clean_text(text, max_length=300):
     text = re.sub(
         r"\s+",
         " ",
-        text
+        str(text)
     ).strip()
 
     return text[:max_length]
 
 
 # =========================================================
-# PRODUCT DATA EXTRACTION
+# EXTRACT JSON-LD DATA
 # =========================================================
 
-def extract_product_data(url):
+def get_json_ld(soup):
 
-    url = clean_product_url(url)
-
-    response = request_webpage(
-        url,
-        timeout=25,
-        retries=3
-    )
-
-    soup = BeautifulSoup(
-        response.text,
-        "html.parser"
-    )
-
-    # -----------------------------------------------------
-    # PRODUCT TITLE
-    # -----------------------------------------------------
-
-    title = None
-
-    h1 = soup.find("h1")
-
-    if h1:
-
-        title = clean_text(
-            h1.get_text(
-                " ",
-                strip=True
-            ),
-            250
-        )
-
-    if not title:
-
-        meta = soup.find(
-            "meta",
-            property="og:title"
-        )
-
-        if meta:
-
-            title = clean_text(
-                meta.get("content"),
-                250
-            )
-
-    if not title and soup.title:
-
-        title = clean_text(
-            soup.title.get_text(
-                " ",
-                strip=True
-            ),
-            250
-        )
-
-    # -----------------------------------------------------
-    # PAGE TEXT
-    # -----------------------------------------------------
-
-    page_text = soup.get_text(
-        " ",
-        strip=True
-    )
-
-    # -----------------------------------------------------
-    # PRODUCT RATING
-    # -----------------------------------------------------
-
-    rating = None
+    data_items = []
 
     scripts = soup.find_all(
         "script",
@@ -453,140 +553,435 @@ def extract_product_data(url):
 
         try:
 
-            data = json.loads(
-                script.string or script.get_text()
+            raw = (
+                script.string
+                or
+                script.get_text()
             )
 
-            objects = (
-                data
-                if isinstance(data, list)
-                else [data]
+            if not raw:
+                continue
+
+            data = json.loads(raw)
+
+            if isinstance(data, list):
+
+                data_items.extend(data)
+
+            else:
+
+                data_items.append(data)
+
+        except Exception:
+            continue
+
+    return data_items
+
+
+# =========================================================
+# EXTRACT PRODUCT DATA
+# =========================================================
+
+def extract_product_data(url):
+
+    original_url = url.strip()
+
+    clean_url = clean_product_url(
+        original_url
+    )
+
+    asin = get_amazon_asin(
+        clean_url
+    )
+
+    response = request_webpage(
+        clean_url,
+        timeout=45,
+        retries=3
+    )
+
+    soup = BeautifulSoup(
+        response.text,
+        "html.parser"
+    )
+
+    page_text = soup.get_text(
+        " ",
+        strip=True
+    )
+
+    json_items = get_json_ld(
+        soup
+    )
+
+    # =====================================================
+    # PRODUCT TITLE
+    # =====================================================
+
+    title = None
+
+    # JSON-LD
+    for obj in json_items:
+
+        if not isinstance(obj, dict):
+            continue
+
+        name = obj.get("name")
+
+        if (
+            name
+            and isinstance(name, str)
+            and len(name.strip()) > 5
+        ):
+
+            title = clean_text(
+                name,
+                300
             )
 
-            for obj in objects:
+            break
 
-                if not isinstance(obj, dict):
-                    continue
+    # H1
+    if not title:
 
-                aggregate = obj.get(
-                    "aggregateRating"
+        h1 = soup.find("h1")
+
+        if h1:
+
+            candidate = clean_text(
+                h1.get_text(
+                    " ",
+                    strip=True
+                ),
+                300
+            )
+
+            if (
+                candidate
+                and candidate.lower()
+                not in (
+                    "amazon",
+                    "amazon.in"
+                )
+            ):
+
+                title = candidate
+
+    # OpenGraph
+    if not title:
+
+        meta = soup.find(
+            "meta",
+            property="og:title"
+        )
+
+        if meta:
+
+            candidate = clean_text(
+                meta.get("content"),
+                300
+            )
+
+            if (
+                candidate
+                and candidate.lower()
+                not in (
+                    "amazon",
+                    "amazon.in"
+                )
+            ):
+
+                title = candidate
+
+    # HTML title
+    if not title and soup.title:
+
+        candidate = clean_text(
+            soup.title.get_text(
+                " ",
+                strip=True
+            ),
+            300
+        )
+
+        if (
+            candidate
+            and candidate.lower()
+            not in (
+                "amazon",
+                "amazon.in"
+            )
+        ):
+
+            title = candidate
+
+    # Jina markdown title fallback
+    if not title:
+
+        for line in response.text.splitlines():
+
+            line = line.strip()
+
+            if line.startswith("# "):
+
+                candidate = clean_text(
+                    line[2:],
+                    300
                 )
 
-                if isinstance(
-                    aggregate,
-                    dict
+                if (
+                    candidate
+                    and candidate.lower()
+                    not in (
+                        "amazon",
+                        "amazon.in"
+                    )
                 ):
 
-                    value = aggregate.get(
-                        "ratingValue"
-                    )
+                    title = candidate
+                    break
 
-                    if value:
+    # Amazon URL fallback
+    if not title and asin:
 
-                        try:
+        path = urlparse(
+            clean_url
+        ).path
 
-                            value = float(value)
+        parts = path.strip(
+            "/"
+        ).split("/")
 
-                            if 0 <= value <= 5:
-                                rating = value
-                                break
+        if parts:
 
-                        except:
-                            pass
+            slug = parts[0]
 
-            if rating is not None:
-                break
+            if slug.lower() not in (
+                "dp",
+                "gp",
+                "product"
+            ):
 
-        except:
-            pass
+                title = clean_text(
+                    slug.replace(
+                        "-",
+                        " "
+                    ).title(),
+                    300
+                )
 
+    # =====================================================
+    # RATING
+    # =====================================================
+
+    rating = None
+
+    for obj in json_items:
+
+        if not isinstance(obj, dict):
+            continue
+
+        aggregate = obj.get(
+            "aggregateRating"
+        )
+
+        if isinstance(
+            aggregate,
+            dict
+        ):
+
+            value = aggregate.get(
+                "ratingValue"
+            )
+
+            try:
+
+                if value is not None:
+
+                    value = float(value)
+
+                    if 0 <= value <= 5:
+
+                        rating = value
+                        break
+
+            except (ValueError, TypeError):
+
+                pass
+
+    # Rating from page
     if rating is None:
 
         rating = extract_rating(
             page_text
         )
 
-    # -----------------------------------------------------
+    # =====================================================
     # REVIEWS
-    # -----------------------------------------------------
+    # =====================================================
 
     reviews = []
 
-    review_selectors = [
+    selectors = [
 
         '[itemprop="reviewBody"]',
+
         '[data-hook="review-body"]',
+
+        '[data-hook="review-collapsed"]',
+
         '[class*="review-text"]',
+
         '[class*="reviewText"]',
+
         '[class*="review-content"]',
-        '[class*="reviewContent"]',
-        '[class*="review"]',
-        '[id*="review"]'
+
+        '[class*="reviewContent"]'
 
     ]
 
-    for selector in review_selectors:
+    for selector in selectors:
 
-        elements = soup.select(
+        for element in soup.select(
             selector
-        )
-
-        for element in elements:
+        ):
 
             text = clean_text(
                 element.get_text(
                     " ",
                     strip=True
                 ),
-                1000
+                1200
             )
 
-            if len(text) >= 40:
-                reviews.append(text)
+            if len(text) >= 25:
+
+                reviews.append(
+                    text
+                )
+
+    # Remove duplicates
+    reviews = list(
+        dict.fromkeys(
+            reviews
+        )
+    )
+
+    # =====================================================
+    # JINA / PLAIN TEXT REVIEW FALLBACK
+    # =====================================================
+
+    if not reviews:
+
+        lines = response.text.splitlines()
+
+        review_keywords = [
+            "verified purchase",
+            "reviewed in india",
+            "customer review",
+            "customer reviews"
+        ]
+
+        for line in lines:
+
+            line = clean_text(
+                line,
+                1200
+            )
+
+            lower = line.lower()
+
+            if (
+                len(line) >= 50
+                and any(
+                    keyword in lower
+                    for keyword in review_keywords
+                )
+            ):
+
+                reviews.append(
+                    line
+                )
 
     reviews = list(
-        dict.fromkeys(reviews)
+        dict.fromkeys(
+            reviews
+        )
     )
 
     reviews = reviews[:30]
 
-    # -----------------------------------------------------
+    # =====================================================
     # BRAND
-    # -----------------------------------------------------
+    # =====================================================
 
     brand = None
 
-    known_brands = [
+    for obj in json_items:
 
-        "Nike",
-        "Adidas",
-        "Puma",
-        "Reebok",
-        "Apple",
-        "Samsung",
-        "OnePlus",
-        "Sony",
-        "LG",
-        "HP",
-        "Dell",
-        "Lenovo",
-        "Asus",
-        "Acer",
-        "Frontech",
-        "Logitech",
-        "Boat",
-        "JBL",
-        "Realme",
-        "Oppo",
-        "Vivo",
-        "Levi's",
-        "Pepe Jeans",
-        "Flying Machine",
-        "Roadster"
+        if not isinstance(obj, dict):
+            continue
 
-    ]
+        brand_data = obj.get(
+            "brand"
+        )
 
-    if title:
+        brand_name = None
+
+        if isinstance(
+            brand_data,
+            dict
+        ):
+
+            brand_name = brand_data.get(
+                "name"
+            )
+
+        elif isinstance(
+            brand_data,
+            str
+        ):
+
+            brand_name = brand_data
+
+        if brand_name:
+
+            brand = clean_text(
+                brand_name,
+                100
+            )
+
+            break
+
+    # Known brand fallback
+    if not brand and title:
+
+        known_brands = [
+
+            "Dell",
+            "HP",
+            "Lenovo",
+            "ASUS",
+            "Acer",
+            "Logitech",
+            "Zebronics",
+            "Ant Esports",
+            "Redragon",
+            "Frontech",
+            "Boat",
+            "JBL",
+            "Sony",
+            "Samsung",
+            "Apple",
+            "OnePlus",
+            "Realme",
+            "Oppo",
+            "Vivo",
+            "Cosmic Byte",
+            "Portronics",
+            "Amazon Basics"
+
+        ]
 
         title_lower = title.lower()
 
@@ -603,7 +998,9 @@ def extract_product_data(url):
         "brand": brand,
         "reviews": reviews,
         "soup": soup,
-        "page_url": url
+        "page_url": clean_url,
+        "asin": asin,
+        "raw_response": response.text
     }
 
 
@@ -639,17 +1036,17 @@ def find_related_products(
 
         if parent:
 
-            containers.append(parent)
+            containers.append(
+                parent
+            )
 
             if parent.parent:
+
                 containers.append(
                     parent.parent
                 )
 
-    # -----------------------------------------------------
-    # RELATED SECTIONS
-    # -----------------------------------------------------
-
+    # Related sections
     for container in containers:
 
         links = container.find_all(
@@ -659,17 +1056,22 @@ def find_related_products(
 
         for link in links:
 
-            href = link.get("href")
+            href = link.get(
+                "href"
+            )
 
             text = clean_text(
                 link.get_text(
                     " ",
                     strip=True
                 ),
-                200
+                250
             )
 
-            if not text or len(text) < 5:
+            if (
+                not text
+                or len(text) < 5
+            ):
                 continue
 
             full_url = urljoin(
@@ -680,29 +1082,28 @@ def find_related_products(
             if urlparse(
                 full_url
             ).netloc != domain:
+
                 continue
 
             if full_url == base_url:
                 continue
 
-            rating = extract_rating(
-                link.get_text(
-                    " ",
-                    strip=True
-                )
+            candidates.append(
+                {
+                    "Product": text,
+                    "URL": full_url,
+                    "Rating": extract_rating(
+                        link.get_text(
+                            " ",
+                            strip=True
+                        )
+                    ),
+                    "Source":
+                        "Related products"
+                }
             )
 
-            candidates.append({
-                "Product": text,
-                "URL": full_url,
-                "Rating": rating,
-                "Source": "Related products"
-            })
-
-    # -----------------------------------------------------
-    # GENERAL PRODUCT LINKS
-    # -----------------------------------------------------
-
+    # General product links
     if len(candidates) < 5:
 
         for link in soup.find_all(
@@ -710,17 +1111,22 @@ def find_related_products(
             href=True
         ):
 
-            href = link.get("href")
+            href = link.get(
+                "href"
+            )
 
             text = clean_text(
                 link.get_text(
                     " ",
                     strip=True
                 ),
-                200
+                250
             )
 
-            if not text or len(text) < 15:
+            if (
+                not text
+                or len(text) < 15
+            ):
                 continue
 
             full_url = urljoin(
@@ -731,6 +1137,7 @@ def find_related_products(
             if urlparse(
                 full_url
             ).netloc != domain:
+
                 continue
 
             href_lower = href.lower()
@@ -751,28 +1158,29 @@ def find_related_products(
             if full_url == base_url:
                 continue
 
-            rating = extract_rating(
-                link.get_text(
-                    " ",
-                    strip=True
-                )
+            candidates.append(
+                {
+                    "Product": text,
+                    "URL": full_url,
+                    "Rating": extract_rating(
+                        link.get_text(
+                            " ",
+                            strip=True
+                        )
+                    ),
+                    "Source":
+                        "Product page"
+                }
             )
 
-            candidates.append({
-                "Product": text,
-                "URL": full_url,
-                "Rating": rating,
-                "Source": "Product page"
-            })
-
-    # -----------------------------------------------------
-    # REMOVE DUPLICATES
-    # -----------------------------------------------------
-
+    # Remove duplicates
     unique = {}
 
     for item in candidates:
-        unique[item["URL"]] = item
+
+        unique[
+            item["URL"]
+        ] = item
 
     return list(
         unique.values()
@@ -796,7 +1204,8 @@ def web_search_similar_products(
     ).netloc
 
     query = (
-        f'"{product_title}" similar products'
+        f'"{product_title}" '
+        f'similar products'
     )
 
     search_url = (
@@ -827,20 +1236,27 @@ def web_search_similar_products(
             href=True
         ):
 
-            href = link.get("href")
+            href = link.get(
+                "href"
+            )
 
             text = clean_text(
                 link.get_text(
                     " ",
                     strip=True
                 ),
-                200
+                250
             )
 
-            if not text or len(text) < 10:
+            if (
+                not text
+                or len(text) < 10
+            ):
                 continue
 
-            if href.startswith("/url?q="):
+            if href.startswith(
+                "/url?q="
+            ):
 
                 href = href.split(
                     "/url?q=",
@@ -850,7 +1266,9 @@ def web_search_similar_products(
                     1
                 )[0]
 
-            if not href.startswith("http"):
+            if not href.startswith(
+                "http"
+            ):
                 continue
 
             if urlparse(
@@ -858,23 +1276,31 @@ def web_search_similar_products(
             ).netloc == domain:
                 continue
 
-            results.append({
-                "Product": text,
-                "URL": href,
-                "Rating": extract_rating(text),
-                "Source": "Web search"
-            })
+            results.append(
+                {
+                    "Product": text,
+                    "URL": href,
+                    "Rating":
+                        extract_rating(text),
+                    "Source":
+                        "Web search"
+                }
+            )
 
         unique = {}
 
         for item in results:
-            unique[item["URL"]] = item
+
+            unique[
+                item["URL"]
+            ] = item
 
         return list(
             unique.values()
         )[:10]
 
-    except:
+    except Exception:
+
         return []
 
 
@@ -886,9 +1312,13 @@ def fetch_product_rating(url):
 
     try:
 
+        clean_url = clean_product_url(
+            url
+        )
+
         response = request_webpage(
-            url,
-            timeout=15,
+            clean_url,
+            timeout=30,
             retries=2
         )
 
@@ -897,56 +1327,48 @@ def fetch_product_rating(url):
             "html.parser"
         )
 
-        scripts = soup.find_all(
-            "script",
-            type="application/ld+json"
+        json_items = get_json_ld(
+            soup
         )
 
-        for script in scripts:
+        # JSON-LD rating
+        for obj in json_items:
 
-            try:
+            if not isinstance(
+                obj,
+                dict
+            ):
+                continue
 
-                data = json.loads(
-                    script.string or script.get_text()
+            aggregate = obj.get(
+                "aggregateRating"
+            )
+
+            if isinstance(
+                aggregate,
+                dict
+            ):
+
+                value = aggregate.get(
+                    "ratingValue"
                 )
 
-                objects = (
-                    data
-                    if isinstance(data, list)
-                    else [data]
-                )
+                try:
 
-                for obj in objects:
+                    value = float(value)
 
-                    if not isinstance(
-                        obj,
-                        dict
-                    ):
-                        continue
+                    if 0 <= value <= 5:
 
-                    aggregate = obj.get(
-                        "aggregateRating"
-                    )
+                        return value
 
-                    if isinstance(
-                        aggregate,
-                        dict
-                    ):
+                except (
+                    ValueError,
+                    TypeError
+                ):
 
-                        value = aggregate.get(
-                            "ratingValue"
-                        )
+                    pass
 
-                        if value:
-
-                            value = float(value)
-
-                            if 0 <= value <= 5:
-                                return value
-
-            except:
-                pass
-
+        # Text fallback
         page_text = soup.get_text(
             " ",
             strip=True
@@ -956,7 +1378,8 @@ def fetch_product_rating(url):
             page_text
         )
 
-    except:
+    except Exception:
+
         return None
 
 
@@ -968,10 +1391,21 @@ def get_similar_products(
     product_data
 ):
 
-    soup = product_data["soup"]
-    product_url = product_data["page_url"]
-    product_title = product_data["title"]
-    original_rating = product_data["rating"]
+    soup = product_data[
+        "soup"
+    ]
+
+    product_url = product_data[
+        "page_url"
+    ]
+
+    product_title = product_data[
+        "title"
+    ]
+
+    original_rating = product_data[
+        "rating"
+    ]
 
     candidates = find_related_products(
         soup,
@@ -992,7 +1426,10 @@ def get_similar_products(
     unique = {}
 
     for item in candidates:
-        unique[item["URL"]] = item
+
+        unique[
+            item["URL"]
+        ] = item
 
     candidates = list(
         unique.values()
@@ -1007,7 +1444,6 @@ def get_similar_products(
         )
     )
 
-    # Check maximum 15 candidates
     for candidate in candidates[:15]:
 
         rating = candidate.get(
@@ -1022,7 +1458,6 @@ def get_similar_products(
 
         candidate["Rating"] = rating
 
-        # No rating = ignore
         if rating is None:
             continue
 
@@ -1031,16 +1466,22 @@ def get_similar_products(
             original_rating is not None
             and rating < original_rating
         ):
+
             continue
 
         candidate_words = set(
             re.findall(
                 r"[a-zA-Z0-9]+",
-                candidate["Product"].lower()
+                candidate[
+                    "Product"
+                ].lower()
             )
         )
 
-        if original_words and candidate_words:
+        if (
+            original_words
+            and candidate_words
+        ):
 
             similarity = (
                 len(
@@ -1060,7 +1501,9 @@ def get_similar_products(
 
             similarity = 0
 
-        rating_score = rating / 5
+        rating_score = (
+            rating / 5
+        )
 
         recommendation_score = (
             0.55 * similarity
@@ -1068,7 +1511,9 @@ def get_similar_products(
             0.45 * rating_score
         )
 
-        candidate["Similarity"] = similarity
+        candidate[
+            "Similarity"
+        ] = similarity
 
         candidate[
             "Recommendation Score"
@@ -1078,7 +1523,6 @@ def get_similar_products(
             candidate
         )
 
-    # Sort highest recommendation score first
     final_products.sort(
         key=lambda x:
             x["Recommendation Score"],
@@ -1093,17 +1537,22 @@ def get_similar_products(
 # =========================================================
 
 st.markdown(
-    '<div class="section-title">🔗 Analyze a Product URL</div>',
+    '<div class="section-title">'
+    '🔗 Analyze a Product URL'
+    '</div>',
     unsafe_allow_html=True
 )
 
 st.write(
-    "Paste a product URL. No CSV or dataset upload is required."
+    "Paste a product URL. "
+    "No CSV or dataset upload is required."
 )
 
 product_url = st.text_input(
     "Product URL",
-    placeholder="https://www.amazon.in/dp/XXXXXXXXXX"
+    placeholder=(
+        "https://www.amazon.in/dp/XXXXXXXXXX"
+    )
 )
 
 analyze_button = st.button(
@@ -1119,6 +1568,12 @@ analyze_button = st.button(
 
 if analyze_button:
 
+    # Clear previous result
+    st.session_state.pop(
+        "product_data",
+        None
+    )
+
     if not product_url:
 
         st.warning(
@@ -1126,9 +1581,13 @@ if analyze_button:
         )
 
     elif not (
-        product_url.startswith("http://")
+        product_url.startswith(
+            "http://"
+        )
         or
-        product_url.startswith("https://")
+        product_url.startswith(
+            "https://"
+        )
     ):
 
         st.error(
@@ -1149,6 +1608,19 @@ if analyze_button:
                         product_url
                     )
                 )
+
+                # Do not accept an empty product
+                if (
+                    not product_data["title"]
+                    and product_data["rating"]
+                    is None
+                    and not product_data["reviews"]
+                ):
+
+                    raise RuntimeError(
+                        "No usable product information "
+                        "could be extracted from this page."
+                    )
 
                 st.session_state[
                     "product_data"
@@ -1171,27 +1643,47 @@ if analyze_button:
 
 if "product_data" in st.session_state:
 
-    product_data = st.session_state[
-        "product_data"
+    product_data = (
+        st.session_state[
+            "product_data"
+        ]
+    )
+
+    title = product_data[
+        "title"
     ]
 
-    title = product_data["title"]
-    rating = product_data["rating"]
-    brand = product_data["brand"]
-    reviews = product_data["reviews"]
+    rating = product_data[
+        "rating"
+    ]
 
-    # -----------------------------------------------------
+    brand = product_data[
+        "brand"
+    ]
+
+    reviews = product_data[
+        "reviews"
+    ]
+
+    # =====================================================
     # PRODUCT INFORMATION
-    # -----------------------------------------------------
+    # =====================================================
 
     st.markdown(
-        '<div class="section-title">📦 Product Information</div>',
+        '<div class="section-title">'
+        '📦 Product Information'
+        '</div>',
         unsafe_allow_html=True
     )
 
     if title:
-        st.subheader(title)
+
+        st.subheader(
+            title
+        )
+
     else:
+
         st.info(
             "Product name could not be extracted."
         )
@@ -1199,7 +1691,7 @@ if "product_data" in st.session_state:
     c1, c2, c3 = st.columns(3)
 
     # -----------------------------------------------------
-    # PRODUCT RATING
+    # RATING
     # -----------------------------------------------------
 
     with c1:
@@ -1301,7 +1793,9 @@ if "product_data" in st.session_state:
 
         st.metric(
             "🏷️ Brand",
-            brand if brand else "Not detected"
+            brand
+            if brand
+            else "Not detected"
         )
 
     # =====================================================
@@ -1317,18 +1811,25 @@ if "product_data" in st.session_state:
     for review in reviews:
 
         sentiment, score = (
-            analyze_sentiment(review)
+            analyze_sentiment(
+                review
+            )
         )
 
-        sentiment_scores.append(score)
+        sentiment_scores.append(
+            score
+        )
 
         if sentiment == "Positive":
+
             positive += 1
 
         elif sentiment == "Negative":
+
             negative += 1
 
         else:
+
             neutral += 1
 
     total_reviews = (
@@ -1354,15 +1855,27 @@ if "product_data" in st.session_state:
     if total_reviews:
 
         positive_percentage = (
-            positive / total_reviews * 100
+            positive
+            /
+            total_reviews
+            *
+            100
         )
 
         neutral_percentage = (
-            neutral / total_reviews * 100
+            neutral
+            /
+            total_reviews
+            *
+            100
         )
 
         negative_percentage = (
-            negative / total_reviews * 100
+            negative
+            /
+            total_reviews
+            *
+            100
         )
 
     else:
@@ -1376,31 +1889,37 @@ if "product_data" in st.session_state:
     # =====================================================
 
     st.markdown(
-        '<div class="section-title">💬 Customer Review Insights</div>',
+        '<div class="section-title">'
+        '💬 Customer Review Insights'
+        '</div>',
         unsafe_allow_html=True
     )
 
     s1, s2, s3, s4 = st.columns(4)
 
     with s1:
+
         st.metric(
             "😊 Positive",
             f"{positive_percentage:.1f}%"
         )
 
     with s2:
+
         st.metric(
             "😐 Neutral",
             f"{neutral_percentage:.1f}%"
         )
 
     with s3:
+
         st.metric(
             "😞 Negative",
             f"{negative_percentage:.1f}%"
         )
 
     with s4:
+
         st.metric(
             "📊 Average Sentiment",
             f"{average_sentiment:.2f}"
@@ -1427,15 +1946,22 @@ if "product_data" in st.session_state:
             ]
         )
 
-        st.bar_chart(chart)
+        st.bar_chart(
+            chart
+        )
 
     # =====================================================
     # BUY SCORE
     # =====================================================
 
     if rating is not None:
-        rating_score = rating / 5
+
+        rating_score = (
+            rating / 5
+        )
+
     else:
+
         rating_score = 0
 
     sentiment_score = (
@@ -1443,30 +1969,39 @@ if "product_data" in st.session_state:
     ) / 2
 
     if total_reviews >= 20:
+
         review_confidence = 1.0
 
     elif total_reviews >= 10:
+
         review_confidence = 0.8
 
     elif total_reviews >= 5:
+
         review_confidence = 0.6
 
     elif total_reviews > 0:
+
         review_confidence = 0.4
 
     else:
+
         review_confidence = 0
 
     if negative_percentage <= 10:
+
         risk_score = 1.0
 
     elif negative_percentage <= 20:
+
         risk_score = 0.8
 
     elif negative_percentage <= 35:
+
         risk_score = 0.5
 
     else:
+
         risk_score = 0.2
 
     buy_score = (
@@ -1479,42 +2014,52 @@ if "product_data" in st.session_state:
         0.15 * risk_score
     )
 
-    buy_percentage = buy_score * 100
+    buy_percentage = (
+        buy_score * 100
+    )
 
     # =====================================================
     # PURCHASE DECISION
     # =====================================================
 
     st.markdown(
-        '<div class="section-title">🛍️ Purchase Decision</div>',
+        '<div class="section-title">'
+        '🛍️ Purchase Decision'
+        '</div>',
         unsafe_allow_html=True
     )
 
     b1, b2, b3 = st.columns(3)
 
     with b1:
+
         st.metric(
             "🛒 Buy Score",
             f"{buy_percentage:.1f}/100"
         )
 
     with b2:
+
         st.metric(
             "⭐ Rating Score",
             f"{rating_score * 100:.1f}%"
         )
 
     with b3:
+
         st.metric(
             "💬 Sentiment Score",
             f"{sentiment_score * 100:.1f}%"
         )
 
-    # -----------------------------------------------------
-    # FINAL DECISION BASED ON RATING
-    # -----------------------------------------------------
+    # =====================================================
+    # FINAL RATING DECISION
+    # =====================================================
 
-    if rating is not None and rating >= 4.0:
+    if (
+        rating is not None
+        and rating >= 4.0
+    ):
 
         st.markdown(
             """
@@ -1534,7 +2079,10 @@ if "product_data" in st.session_state:
             unsafe_allow_html=True
         )
 
-    elif rating is not None and rating >= 3.0:
+    elif (
+        rating is not None
+        and rating >= 3.0
+    ):
 
         st.markdown(
             """
@@ -1593,7 +2141,9 @@ if "product_data" in st.session_state:
     # =====================================================
 
     st.markdown(
-        '<div class="section-title">🔄 Similar & Better-Rated Products</div>',
+        '<div class="section-title">'
+        '🔄 Similar & Better-Rated Products'
+        '</div>',
         unsafe_allow_html=True
     )
 
@@ -1610,13 +2160,14 @@ if "product_data" in st.session_state:
     if not similar_products:
 
         st.warning(
-            "No related products with verifiable "
-            "ratings could be found."
+            "No related products with "
+            "verifiable ratings could be found."
         )
 
         st.info(
-            "The shopping website may load recommendations "
-            "dynamically or block automated access."
+            "The shopping website may load "
+            "recommendations dynamically or "
+            "block automated access."
         )
 
     else:
@@ -1628,16 +2179,22 @@ if "product_data" in st.session_state:
             display_rows.append(
                 {
                     "Product":
-                        product["Product"],
+                        product[
+                            "Product"
+                        ],
 
                     "Rating":
                         f"{product['Rating']:.1f}/5",
 
                     "Similarity":
-                        f"{product['Similarity'] * 100:.1f}%",
+                        (
+                            f"{product['Similarity'] * 100:.1f}%"
+                        ),
 
                     "Recommendation Score":
-                        f"{product['Recommendation Score'] * 100:.1f}%"
+                        (
+                            f"{product['Recommendation Score'] * 100:.1f}%"
+                        )
                 }
             )
 
@@ -1657,88 +2214,72 @@ if "product_data" in st.session_state:
 
         best = similar_products[0]
 
-        best_rating = best["Rating"]
+        best_rating = best[
+            "Rating"
+        ]
 
         if best_rating >= 4.0:
 
-            st.markdown(
-                f"""
-                <div style="
-                    background:#174d3b;
-                    border-left:6px solid #35d07f;
-                    padding:18px 20px;
-                    border-radius:10px;
-                    color:#35d07f;
-                    font-size:18px;
-                    font-weight:700;
-                    margin-top:20px;
-                ">
-                    🏆 Best Alternative:
-                    {best['Product']}
-                    — ⭐ {best_rating:.1f}/5
-                    <br>
-                    🟢 MUST BUY
-                </div>
-                """,
-                unsafe_allow_html=True
+            decision_text = (
+                "🟢 MUST BUY"
             )
+
+            background = "#174d3b"
+            border = "#35d07f"
+            text_color = "#35d07f"
 
         elif best_rating >= 3.0:
 
-            st.markdown(
-                f"""
-                <div style="
-                    background:#4a4320;
-                    border-left:6px solid #e6cf68;
-                    padding:18px 20px;
-                    border-radius:10px;
-                    color:#e6cf68;
-                    font-size:18px;
-                    font-weight:700;
-                    margin-top:20px;
-                ">
-                    🏆 Best Alternative:
-                    {best['Product']}
-                    — ⭐ {best_rating:.1f}/5
-                    <br>
-                    🟡 CAN BUY
-                </div>
-                """,
-                unsafe_allow_html=True
+            decision_text = (
+                "🟡 CAN BUY"
             )
+
+            background = "#4a4320"
+            border = "#e6cf68"
+            text_color = "#e6cf68"
 
         else:
 
-            st.markdown(
-                f"""
-                <div style="
-                    background:#4a2528;
-                    border-left:6px solid #ff7773;
-                    padding:18px 20px;
-                    border-radius:10px;
-                    color:#ff7773;
-                    font-size:18px;
-                    font-weight:700;
-                    margin-top:20px;
-                ">
-                    🏆 Best Alternative:
-                    {best['Product']}
-                    — ⭐ {best_rating:.1f}/5
-                    <br>
-                    🔴 DON'T BUY
-                </div>
-                """,
-                unsafe_allow_html=True
+            decision_text = (
+                "🔴 DON'T BUY"
             )
 
-        # -------------------------------------------------
+            background = "#4a2528"
+            border = "#ff7773"
+            text_color = "#ff7773"
+
+        st.markdown(
+            f"""
+            <div style="
+                background:{background};
+                border-left:6px solid {border};
+                padding:18px 20px;
+                border-radius:10px;
+                color:{text_color};
+                font-size:18px;
+                font-weight:700;
+                margin-top:20px;
+            ">
+                🏆 Best Alternative:
+                {best['Product']}
+                — ⭐ {best_rating:.1f}/5
+                <br>
+                {decision_text}
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+
+        # =================================================
         # RATING COMPARISON
-        # -------------------------------------------------
+        # =================================================
 
         if rating is not None:
 
             difference = (
-                best_rating - rating
+                best_rating
+                -
+                rating
             )
 
             if difference > 0:
@@ -1756,9 +2297,9 @@ if "product_data" in st.session_state:
                     "rating as your selected product."
                 )
 
-        # -------------------------------------------------
+        # =================================================
         # RECOMMENDATION SCORE CHART
-        # -------------------------------------------------
+        # =================================================
 
         st.subheader(
             "📊 Recommendation Scores"
@@ -1767,17 +2308,23 @@ if "product_data" in st.session_state:
         chart_data = pd.DataFrame(
             {
                 "Recommendation Score": [
-                    p["Recommendation Score"] * 100
+                    p[
+                        "Recommendation Score"
+                    ] * 100
                     for p in similar_products
                 ]
             },
             index=[
-                p["Product"][:45]
+                p[
+                    "Product"
+                ][:45]
                 for p in similar_products
             ]
         )
 
-        st.bar_chart(chart_data)
+        st.bar_chart(
+            chart_data
+        )
 
         st.caption(
             "Recommendation Score = "
@@ -1785,9 +2332,9 @@ if "product_data" in st.session_state:
             "45% verified product rating."
         )
 
-        # -------------------------------------------------
+        # =================================================
         # PRODUCT LINKS
-        # -------------------------------------------------
+        # =================================================
 
         with st.expander(
             "🔗 View Product Links"
@@ -1799,7 +2346,8 @@ if "product_data" in st.session_state:
             ):
 
                 st.markdown(
-                    f"**{index}. {product['Product']}**"
+                    f"**{index}. "
+                    f"{product['Product']}**"
                 )
 
                 st.write(
@@ -1816,7 +2364,9 @@ if "product_data" in st.session_state:
 st.markdown("---")
 
 st.markdown(
-    '<div class="section-title">💡 How This System Works</div>',
+    '<div class="section-title">'
+    '💡 How This System Works'
+    '</div>',
     unsafe_allow_html=True
 )
 
@@ -1825,10 +2375,10 @@ st.write(
 1. The user pastes an e-commerce product URL.
 
 2. The system cleans the URL and removes unnecessary
-   tracking parameters when possible.
+   Amazon tracking parameters when possible.
 
-3. The webpage is fetched and parsed using Requests
-   and BeautifulSoup.
+3. The webpage is fetched using Requests. If Amazon
+   blocks the normal request, a fallback reader is tried.
 
 4. Product name, rating, brand and customer reviews
    are extracted.
