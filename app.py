@@ -3,9 +3,9 @@ import pandas as pd
 import requests
 import re
 import json
+import time
 
 from urllib.parse import urljoin, urlparse, quote_plus
-
 from bs4 import BeautifulSoup
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 
@@ -22,11 +22,10 @@ st.set_page_config(
 
 
 # =========================================================
-# NEUTRAL DARK THEME
+# DARK THEME
 # =========================================================
 
-st.markdown(
-    """
+st.markdown("""
 <style>
 
 .stApp {
@@ -36,11 +35,6 @@ st.markdown(
 .main {
     padding-top: 1rem;
 }
-
-
-/* =====================================================
-   MAIN HEADER
-   ===================================================== */
 
 .app-header {
     padding: 28px 30px;
@@ -70,11 +64,6 @@ st.markdown(
     line-height: 1.6;
 }
 
-
-/* =====================================================
-   SECTION TITLES
-   ===================================================== */
-
 .section-title {
     font-size: 30px;
     font-weight: 900;
@@ -82,11 +71,6 @@ st.markdown(
     margin-top: 30px;
     margin-bottom: 18px;
 }
-
-
-/* =====================================================
-   NORMAL METRICS
-   ===================================================== */
 
 [data-testid="stMetric"] {
     background: transparent !important;
@@ -104,26 +88,14 @@ st.markdown(
     font-weight: 800 !important;
 }
 
-
-/* =====================================================
-   GENERAL TEXT
-   ===================================================== */
-
 .stMarkdown,
 .stText {
     color: #d5d8db;
 }
 
-h1,
-h2,
-h3 {
+h1, h2, h3 {
     color: #f1f2f3 !important;
 }
-
-
-/* =====================================================
-   TEXT INPUT
-   ===================================================== */
 
 .stTextInput input {
     background: #292e34 !important;
@@ -135,11 +107,6 @@ h3 {
 .stTextInput input::placeholder {
     color: #8e959c !important;
 }
-
-
-/* =====================================================
-   BUTTON
-   ===================================================== */
 
 .stButton > button {
     border-radius: 8px;
@@ -155,31 +122,16 @@ h3 {
     color: #ffffff;
 }
 
-
-/* =====================================================
-   TABLE
-   ===================================================== */
-
 [data-testid="stDataFrame"] {
     border: 1px solid #3a4046;
     border-radius: 10px;
 }
-
-
-/* =====================================================
-   EXPANDER
-   ===================================================== */
 
 [data-testid="stExpander"] {
     border: 1px solid #3a4046;
     border-radius: 10px;
     background: #24282d;
 }
-
-
-/* =====================================================
-   DIVIDER
-   ===================================================== */
 
 hr {
     border: none;
@@ -188,24 +140,19 @@ hr {
 }
 
 </style>
-""",
-    unsafe_allow_html=True
-)
+""", unsafe_allow_html=True)
 
 
 # =========================================================
 # PROJECT HEADER
 # =========================================================
 
-st.markdown(
-    """
+st.markdown("""
 <div class="app-header">
 <h1>🛒 E-Commerce Product Recommendation Using Customer Reviews</h1>
 <p>Analyze customer feedback and discover similar products with equal or higher ratings.</p>
 </div>
-""",
-    unsafe_allow_html=True
-)
+""", unsafe_allow_html=True)
 
 
 # =========================================================
@@ -216,7 +163,7 @@ analyzer = SentimentIntensityAnalyzer()
 
 
 # =========================================================
-# HTTP HEADERS
+# REQUEST HEADERS
 # =========================================================
 
 HEADERS = {
@@ -224,14 +171,126 @@ HEADERS = {
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
         "AppleWebKit/537.36 "
         "(KHTML, like Gecko) "
-        "Chrome/142.0 Safari/537.36"
+        "Chrome/142.0.0.0 Safari/537.36"
     ),
-    "Accept-Language": "en-US,en;q=0.9",
+    "Accept-Language": "en-IN,en;q=0.9",
     "Accept": (
         "text/html,application/xhtml+xml,"
-        "application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8"
-    )
+        "application/xml;q=0.9,"
+        "image/avif,image/webp,*/*;q=0.8"
+    ),
+    "Accept-Encoding": "gzip, deflate",
+    "DNT": "1",
+    "Upgrade-Insecure-Requests": "1",
+    "Sec-Fetch-Dest": "document",
+    "Sec-Fetch-Mode": "navigate",
+    "Sec-Fetch-Site": "none",
+    "Sec-Fetch-User": "?1"
 }
+
+
+# =========================================================
+# CLEAN PRODUCT URL
+# =========================================================
+
+def clean_product_url(url):
+
+    url = (url or "").strip()
+
+    parsed = urlparse(url)
+    host = parsed.netloc.lower()
+
+    # Clean Amazon URL
+    if "amazon." in host:
+
+        match = re.search(
+            r"/(?:dp|gp/product|product)/([A-Z0-9]{10})(?:/|$)",
+            parsed.path,
+            flags=re.IGNORECASE
+        )
+
+        if match:
+            return (
+                f"https://{parsed.netloc}/dp/"
+                f"{match.group(1).upper()}"
+            )
+
+    return url
+
+
+# =========================================================
+# SAFE WEB REQUEST
+# =========================================================
+
+def request_webpage(url, timeout=25, retries=3):
+
+    clean_url = clean_product_url(url)
+
+    last_status = None
+
+    for attempt in range(retries):
+
+        try:
+
+            response = requests.get(
+                clean_url,
+                headers=HEADERS,
+                timeout=timeout,
+                allow_redirects=True
+            )
+
+            last_status = response.status_code
+
+            if response.status_code == 200:
+                return response
+
+            if response.status_code in (
+                429, 500, 502, 503, 504
+            ):
+
+                if attempt < retries - 1:
+                    time.sleep(
+                        1.5 * (attempt + 1)
+                    )
+                    continue
+
+            if response.status_code in (401, 403):
+
+                raise RuntimeError(
+                    f"The website blocked automated access "
+                    f"(HTTP {response.status_code})."
+                )
+
+            raise RuntimeError(
+                f"The website returned HTTP "
+                f"{response.status_code}."
+            )
+
+        except requests.exceptions.RequestException as e:
+
+            if attempt < retries - 1:
+                time.sleep(
+                    1.5 * (attempt + 1)
+                )
+                continue
+
+            raise RuntimeError(
+                f"Network error while opening the "
+                f"product page: {e}"
+            )
+
+    if last_status == 503:
+
+        raise RuntimeError(
+            "The shopping website returned HTTP 503 "
+            "(Service Unavailable). The website is "
+            "temporarily refusing automated requests."
+        )
+
+    raise RuntimeError(
+        f"The product page could not be accessed "
+        f"(HTTP {last_status})."
+    )
 
 
 # =========================================================
@@ -247,7 +306,7 @@ def analyze_sentiment(text):
     if score >= 0.05:
         return "Positive", score
 
-    elif score <= -0.05:
+    if score <= -0.05:
         return "Negative", score
 
     return "Neutral", score
@@ -292,7 +351,7 @@ def extract_rating(text):
 
 
 # =========================================================
-# CLEAN TEXT
+# TEXT CLEANING
 # =========================================================
 
 def clean_text(text, max_length=300):
@@ -310,28 +369,27 @@ def clean_text(text, max_length=300):
 
 
 # =========================================================
-# PRODUCT INFORMATION EXTRACTION
+# PRODUCT DATA EXTRACTION
 # =========================================================
 
 def extract_product_data(url):
 
-    response = requests.get(
-        url,
-        headers=HEADERS,
-        timeout=20
-    )
+    url = clean_product_url(url)
 
-    response.raise_for_status()
+    response = request_webpage(
+        url,
+        timeout=25,
+        retries=3
+    )
 
     soup = BeautifulSoup(
         response.text,
         "html.parser"
     )
 
-
-    # =====================================================
+    # -----------------------------------------------------
     # PRODUCT TITLE
-    # =====================================================
+    # -----------------------------------------------------
 
     title = None
 
@@ -347,7 +405,6 @@ def extract_product_data(url):
             250
         )
 
-
     if not title:
 
         meta = soup.find(
@@ -362,7 +419,6 @@ def extract_product_data(url):
                 250
             )
 
-
     if not title and soup.title:
 
         title = clean_text(
@@ -373,20 +429,18 @@ def extract_product_data(url):
             250
         )
 
-
-    # =====================================================
+    # -----------------------------------------------------
     # PAGE TEXT
-    # =====================================================
+    # -----------------------------------------------------
 
     page_text = soup.get_text(
         " ",
         strip=True
     )
 
-
-    # =====================================================
+    # -----------------------------------------------------
     # PRODUCT RATING
-    # =====================================================
+    # -----------------------------------------------------
 
     rating = None
 
@@ -411,10 +465,7 @@ def extract_product_data(url):
 
             for obj in objects:
 
-                if not isinstance(
-                    obj,
-                    dict
-                ):
+                if not isinstance(obj, dict):
                     continue
 
                 aggregate = obj.get(
@@ -434,11 +485,10 @@ def extract_product_data(url):
 
                         try:
 
-                            rating = float(
-                                value
-                            )
+                            value = float(value)
 
-                            if 0 <= rating <= 5:
+                            if 0 <= value <= 5:
+                                rating = value
                                 break
 
                         except:
@@ -450,40 +500,30 @@ def extract_product_data(url):
         except:
             pass
 
-
     if rating is None:
 
         rating = extract_rating(
             page_text
         )
 
-
-    # =====================================================
+    # -----------------------------------------------------
     # REVIEWS
-    # =====================================================
+    # -----------------------------------------------------
 
     reviews = []
 
     review_selectors = [
 
         '[itemprop="reviewBody"]',
-
         '[data-hook="review-body"]',
-
         '[class*="review-text"]',
-
         '[class*="reviewText"]',
-
         '[class*="review-content"]',
-
         '[class*="reviewContent"]',
-
         '[class*="review"]',
-
         '[id*="review"]'
 
     ]
-
 
     for selector in review_selectors:
 
@@ -502,29 +542,17 @@ def extract_product_data(url):
             )
 
             if len(text) >= 40:
-
-                reviews.append(
-                    text
-                )
-
-
-    # Remove duplicates
+                reviews.append(text)
 
     reviews = list(
-        dict.fromkeys(
-            reviews
-        )
+        dict.fromkeys(reviews)
     )
-
-
-    # Maximum 30 reviews
 
     reviews = reviews[:30]
 
-
-    # =====================================================
-    # BRAND DETECTION
-    # =====================================================
+    # -----------------------------------------------------
+    # BRAND
+    # -----------------------------------------------------
 
     brand = None
 
@@ -558,7 +586,6 @@ def extract_product_data(url):
 
     ]
 
-
     if title:
 
         title_lower = title.lower()
@@ -568,35 +595,25 @@ def extract_product_data(url):
             if candidate.lower() in title_lower:
 
                 brand = candidate
-
                 break
 
-
     return {
-
         "title": title,
-
         "rating": rating,
-
         "brand": brand,
-
         "reviews": reviews,
-
         "soup": soup,
-
         "page_url": url
-
     }
 
 
 # =========================================================
-# FIND RELATED PRODUCTS ON SAME PAGE
+# FIND RELATED PRODUCTS
 # =========================================================
 
 def find_related_products(
     soup,
-    base_url,
-    original_rating
+    base_url
 ):
 
     candidates = []
@@ -605,24 +622,16 @@ def find_related_products(
         base_url
     ).netloc
 
-
     sections = soup.find_all(
-
         string=re.compile(
-
             r"(similar|related|recommended|"
             r"customers also|frequently bought|"
             r"you may also like|people also)",
-
             re.IGNORECASE
-
         )
-
     )
 
-
-    possible_containers = []
-
+    containers = []
 
     for section in sections:
 
@@ -630,22 +639,18 @@ def find_related_products(
 
         if parent:
 
-            possible_containers.append(
-                parent
-            )
+            containers.append(parent)
 
             if parent.parent:
-
-                possible_containers.append(
+                containers.append(
                     parent.parent
                 )
 
+    # -----------------------------------------------------
+    # RELATED SECTIONS
+    # -----------------------------------------------------
 
-    # =====================================================
-    # SEARCH RELATED AREAS
-    # =====================================================
-
-    for container in possible_containers:
+    for container in containers:
 
         links = container.find_all(
             "a",
@@ -654,9 +659,7 @@ def find_related_products(
 
         for link in links:
 
-            href = link.get(
-                "href"
-            )
+            href = link.get("href")
 
             text = clean_text(
                 link.get_text(
@@ -677,13 +680,12 @@ def find_related_products(
             if urlparse(
                 full_url
             ).netloc != domain:
-
                 continue
 
             if full_url == base_url:
                 continue
 
-            candidate_rating = extract_rating(
+            rating = extract_rating(
                 link.get_text(
                     " ",
                     strip=True
@@ -691,34 +693,24 @@ def find_related_products(
             )
 
             candidates.append({
-
                 "Product": text,
-
                 "URL": full_url,
-
-                "Rating": candidate_rating,
-
+                "Rating": rating,
                 "Source": "Related products"
-
             })
 
-
-    # =====================================================
+    # -----------------------------------------------------
     # GENERAL PRODUCT LINKS
-    # =====================================================
+    # -----------------------------------------------------
 
     if len(candidates) < 5:
 
-        links = soup.find_all(
+        for link in soup.find_all(
             "a",
             href=True
-        )
+        ):
 
-        for link in links:
-
-            href = link.get(
-                "href"
-            )
+            href = link.get("href")
 
             text = clean_text(
                 link.get_text(
@@ -739,7 +731,6 @@ def find_related_products(
             if urlparse(
                 full_url
             ).netloc != domain:
-
                 continue
 
             href_lower = href.lower()
@@ -755,13 +746,12 @@ def find_related_products(
                     "/buy"
                 ]
             ):
-
                 continue
 
             if full_url == base_url:
                 continue
 
-            candidate_rating = extract_rating(
+            rating = extract_rating(
                 link.get_text(
                     " ",
                     strip=True
@@ -769,30 +759,20 @@ def find_related_products(
             )
 
             candidates.append({
-
                 "Product": text,
-
                 "URL": full_url,
-
-                "Rating": candidate_rating,
-
+                "Rating": rating,
                 "Source": "Product page"
-
             })
 
-
-    # =====================================================
+    # -----------------------------------------------------
     # REMOVE DUPLICATES
-    # =====================================================
+    # -----------------------------------------------------
 
     unique = {}
 
     for item in candidates:
-
-        unique[
-            item["URL"]
-        ] = item
-
+        unique[item["URL"]] = item
 
     return list(
         unique.values()
@@ -811,31 +791,18 @@ def web_search_similar_products(
     if not product_title:
         return []
 
-
     domain = urlparse(
         product_url
     ).netloc
 
-
-    search_title = re.sub(
-        r"\s+",
-        " ",
-        product_title
-    ).strip()
-
-
     query = (
-        f'"{search_title}" '
-        f'similar products'
+        f'"{product_title}" similar products'
     )
-
 
     search_url = (
         "https://www.google.com/search?q="
-        +
-        quote_plus(query)
+        + quote_plus(query)
     )
-
 
     try:
 
@@ -848,24 +815,19 @@ def web_search_similar_products(
         if response.status_code != 200:
             return []
 
-
         soup = BeautifulSoup(
             response.text,
             "html.parser"
         )
 
-
         results = []
-
 
         for link in soup.find_all(
             "a",
             href=True
         ):
 
-            href = link.get(
-                "href"
-            )
+            href = link.get("href")
 
             text = clean_text(
                 link.get_text(
@@ -875,14 +837,10 @@ def web_search_similar_products(
                 200
             )
 
-
             if not text or len(text) < 10:
                 continue
 
-
-            if href.startswith(
-                "/url?q="
-            ):
+            if href.startswith("/url?q="):
 
                 href = href.split(
                     "/url?q=",
@@ -892,52 +850,31 @@ def web_search_similar_products(
                     1
                 )[0]
 
-
-            if not href.startswith(
-                "http"
-            ):
-
+            if not href.startswith("http"):
                 continue
-
 
             if urlparse(
                 href
             ).netloc == domain:
-
                 continue
 
-
             results.append({
-
                 "Product": text,
-
                 "URL": href,
-
-                "Rating": extract_rating(
-                    text
-                ),
-
+                "Rating": extract_rating(text),
                 "Source": "Web search"
-
             })
-
 
         unique = {}
 
         for item in results:
-
-            unique[
-                item["URL"]
-            ] = item
-
+            unique[item["URL"]] = item
 
         return list(
             unique.values()
         )[:10]
 
-
     except:
-
         return []
 
 
@@ -949,27 +886,21 @@ def fetch_product_rating(url):
 
     try:
 
-        response = requests.get(
+        response = request_webpage(
             url,
-            headers=HEADERS,
-            timeout=10
+            timeout=15,
+            retries=2
         )
-
-        if response.status_code != 200:
-            return None
-
 
         soup = BeautifulSoup(
             response.text,
             "html.parser"
         )
 
-
         scripts = soup.find_all(
             "script",
             type="application/ld+json"
         )
-
 
         for script in scripts:
 
@@ -985,7 +916,6 @@ def fetch_product_rating(url):
                     else [data]
                 )
 
-
                 for obj in objects:
 
                     if not isinstance(
@@ -994,11 +924,9 @@ def fetch_product_rating(url):
                     ):
                         continue
 
-
                     aggregate = obj.get(
                         "aggregateRating"
                     )
-
 
                     if isinstance(
                         aggregate,
@@ -1009,36 +937,26 @@ def fetch_product_rating(url):
                             "ratingValue"
                         )
 
-
                         if value:
 
-                            value = float(
-                                value
-                            )
-
+                            value = float(value)
 
                             if 0 <= value <= 5:
-
                                 return value
 
             except:
-
                 pass
 
-
-        text = soup.get_text(
+        page_text = soup.get_text(
             " ",
             strip=True
         )
 
-
         return extract_rating(
-            text
+            page_text
         )
 
-
     except:
-
         return None
 
 
@@ -1050,83 +968,51 @@ def get_similar_products(
     product_data
 ):
 
-    soup = product_data[
-        "soup"
-    ]
-
-    product_url = product_data[
-        "page_url"
-    ]
-
-    product_title = product_data[
-        "title"
-    ]
-
-    original_rating = product_data[
-        "rating"
-    ]
-
-
-    # =====================================================
-    # RELATED PRODUCTS
-    # =====================================================
+    soup = product_data["soup"]
+    product_url = product_data["page_url"]
+    product_title = product_data["title"]
+    original_rating = product_data["rating"]
 
     candidates = find_related_products(
         soup,
-        product_url,
-        original_rating
+        product_url
     )
 
-
-    # =====================================================
-    # WEB SEARCH FALLBACK
-    # =====================================================
-
+    # Web search fallback
     if len(candidates) < 5:
 
-        search_results = (
+        candidates.extend(
             web_search_similar_products(
                 product_title,
                 product_url
             )
         )
 
-        candidates.extend(
-            search_results
-        )
-
-
-    # =====================================================
-    # REMOVE DUPLICATES
-    # =====================================================
-
+    # Remove duplicates
     unique = {}
 
     for item in candidates:
-
-        unique[
-            item["URL"]
-        ] = item
-
+        unique[item["URL"]] = item
 
     candidates = list(
         unique.values()
     )
 
-
-    # =====================================================
-    # VERIFY RATINGS
-    # =====================================================
-
     final_products = []
 
+    original_words = set(
+        re.findall(
+            r"[a-zA-Z0-9]+",
+            (product_title or "").lower()
+        )
+    )
 
+    # Check maximum 15 candidates
     for candidate in candidates[:15]:
 
         rating = candidate.get(
             "Rating"
         )
-
 
         if rating is None:
 
@@ -1134,121 +1020,70 @@ def get_similar_products(
                 candidate["URL"]
             )
 
-
         candidate["Rating"] = rating
 
-
-        # Ignore products without rating
-
+        # No rating = ignore
         if rating is None:
             continue
 
-
-        # =================================================
-        # SAME OR HIGHER RATING
-        # =================================================
-
+        # Same or higher rating only
         if (
             original_rating is not None
-            and
-            rating < original_rating
+            and rating < original_rating
         ):
-
             continue
-
-
-        rating_score = (
-            rating / 5
-        )
-
-
-        # =================================================
-        # TITLE SIMILARITY
-        # =================================================
-
-        original_words = set(
-            re.findall(
-                r"[a-zA-Z0-9]+",
-                (
-                    product_title
-                    or ""
-                ).lower()
-            )
-        )
-
 
         candidate_words = set(
             re.findall(
                 r"[a-zA-Z0-9]+",
-                candidate[
-                    "Product"
-                ].lower()
+                candidate["Product"].lower()
             )
         )
 
-
         if original_words and candidate_words:
 
-            overlap = (
-
+            similarity = (
                 len(
                     original_words
                     &
                     candidate_words
                 )
-
                 /
-
                 len(
                     original_words
                     |
                     candidate_words
                 )
-
             )
 
         else:
 
-            overlap = 0
+            similarity = 0
 
+        rating_score = rating / 5
 
-        candidate[
-            "Similarity"
-        ] = overlap
+        recommendation_score = (
+            0.55 * similarity
+            +
+            0.45 * rating_score
+        )
 
-
-        # =================================================
-        # RECOMMENDATION SCORE
-        # =================================================
+        candidate["Similarity"] = similarity
 
         candidate[
             "Recommendation Score"
-        ] = (
-
-            0.55 * overlap
-
-            +
-
-            0.45 * rating_score
-
-        )
-
+        ] = recommendation_score
 
         final_products.append(
             candidate
         )
 
-
-    # =====================================================
-    # SORT
-    # =====================================================
-
+    # Sort highest recommendation score first
     final_products.sort(
         key=lambda x:
             x["Recommendation Score"],
         reverse=True
     )
-
 
     return final_products[:5]
 
@@ -1266,12 +1101,10 @@ st.write(
     "Paste a product URL. No CSV or dataset upload is required."
 )
 
-
 product_url = st.text_input(
     "Product URL",
-    placeholder="https://www.amazon.in/product/..."
+    placeholder="https://www.amazon.in/dp/XXXXXXXXXX"
 )
-
 
 analyze_button = st.button(
     "🔍 Analyze Product & Find Similar Products",
@@ -1293,18 +1126,14 @@ if analyze_button:
         )
 
     elif not (
-        product_url.startswith(
-            "http://"
-        )
+        product_url.startswith("http://")
         or
-        product_url.startswith(
-            "https://"
-        )
+        product_url.startswith("https://")
     ):
 
         st.error(
-            "Please enter a valid URL beginning with "
-            "http:// or https://"
+            "Please enter a valid URL beginning "
+            "with http:// or https://"
         )
 
     else:
@@ -1324,7 +1153,6 @@ if analyze_button:
                 st.session_state[
                     "product_data"
                 ] = product_data
-
 
             except Exception as e:
 
@@ -1347,53 +1175,32 @@ if "product_data" in st.session_state:
         "product_data"
     ]
 
+    title = product_data["title"]
+    rating = product_data["rating"]
+    brand = product_data["brand"]
+    reviews = product_data["reviews"]
 
-    title = product_data[
-        "title"
-    ]
-
-    rating = product_data[
-        "rating"
-    ]
-
-    brand = product_data[
-        "brand"
-    ]
-
-    reviews = product_data[
-        "reviews"
-    ]
-
-
-    # =====================================================
+    # -----------------------------------------------------
     # PRODUCT INFORMATION
-    # =====================================================
+    # -----------------------------------------------------
 
     st.markdown(
         '<div class="section-title">📦 Product Information</div>',
         unsafe_allow_html=True
     )
 
-
     if title:
-
-        st.subheader(
-            title
-        )
-
+        st.subheader(title)
     else:
-
         st.info(
             "Product name could not be extracted."
         )
 
-
     c1, c2, c3 = st.columns(3)
 
-
-    # =====================================================
-    # COLOR-CODED PRODUCT RATING
-    # =====================================================
+    # -----------------------------------------------------
+    # PRODUCT RATING
+    # -----------------------------------------------------
 
     with c1:
 
@@ -1401,13 +1208,7 @@ if "product_data" in st.session_state:
             "⭐ **Product Rating**"
         )
 
-
         if rating is not None:
-
-
-            # =================================================
-            # GREEN
-            # =================================================
 
             if rating >= 4.0:
 
@@ -1428,11 +1229,6 @@ if "product_data" in st.session_state:
                     unsafe_allow_html=True
                 )
 
-
-            # =================================================
-            # YELLOW
-            # =================================================
-
             elif rating >= 3.0:
 
                 st.markdown(
@@ -1451,11 +1247,6 @@ if "product_data" in st.session_state:
                     """,
                     unsafe_allow_html=True
                 )
-
-
-            # =================================================
-            # RED
-            # =================================================
 
             else:
 
@@ -1476,7 +1267,6 @@ if "product_data" in st.session_state:
                     unsafe_allow_html=True
                 )
 
-
         else:
 
             st.markdown(
@@ -1492,10 +1282,9 @@ if "product_data" in st.session_state:
                 unsafe_allow_html=True
             )
 
-
-    # =====================================================
+    # -----------------------------------------------------
     # REVIEWS
-    # =====================================================
+    # -----------------------------------------------------
 
     with c2:
 
@@ -1504,10 +1293,9 @@ if "product_data" in st.session_state:
             len(reviews)
         )
 
-
-    # =====================================================
+    # -----------------------------------------------------
     # BRAND
-    # =====================================================
+    # -----------------------------------------------------
 
     with c3:
 
@@ -1515,7 +1303,6 @@ if "product_data" in st.session_state:
             "🏷️ Brand",
             brand if brand else "Not detected"
         )
-
 
     # =====================================================
     # SENTIMENT ANALYSIS
@@ -1527,33 +1314,22 @@ if "product_data" in st.session_state:
 
     sentiment_scores = []
 
-
     for review in reviews:
 
         sentiment, score = (
-            analyze_sentiment(
-                review
-            )
+            analyze_sentiment(review)
         )
 
-
-        sentiment_scores.append(
-            score
-        )
-
+        sentiment_scores.append(score)
 
         if sentiment == "Positive":
-
             positive += 1
 
         elif sentiment == "Negative":
-
             negative += 1
 
         else:
-
             neutral += 1
-
 
     total_reviews = (
         positive
@@ -1563,52 +1339,30 @@ if "product_data" in st.session_state:
         neutral
     )
 
-
     if sentiment_scores:
 
         average_sentiment = (
-
-            sum(
-                sentiment_scores
-            )
-
+            sum(sentiment_scores)
             /
-
-            len(
-                sentiment_scores
-            )
-
+            len(sentiment_scores)
         )
 
     else:
 
         average_sentiment = 0
 
-
     if total_reviews:
 
         positive_percentage = (
-            positive
-            /
-            total_reviews
-            *
-            100
+            positive / total_reviews * 100
         )
 
         neutral_percentage = (
-            neutral
-            /
-            total_reviews
-            *
-            100
+            neutral / total_reviews * 100
         )
 
         negative_percentage = (
-            negative
-            /
-            total_reviews
-            *
-            100
+            negative / total_reviews * 100
         )
 
     else:
@@ -1616,7 +1370,6 @@ if "product_data" in st.session_state:
         positive_percentage = 0
         neutral_percentage = 0
         negative_percentage = 0
-
 
     # =====================================================
     # CUSTOMER REVIEW INSIGHTS
@@ -1627,41 +1380,31 @@ if "product_data" in st.session_state:
         unsafe_allow_html=True
     )
 
-
     s1, s2, s3, s4 = st.columns(4)
 
-
     with s1:
-
         st.metric(
             "😊 Positive",
             f"{positive_percentage:.1f}%"
         )
 
-
     with s2:
-
         st.metric(
             "😐 Neutral",
             f"{neutral_percentage:.1f}%"
         )
 
-
     with s3:
-
         st.metric(
             "😞 Negative",
             f"{negative_percentage:.1f}%"
         )
 
-
     with s4:
-
         st.metric(
             "📊 Average Sentiment",
             f"{average_sentiment:.2f}"
         )
-
 
     # =====================================================
     # SENTIMENT CHART
@@ -1670,7 +1413,6 @@ if "product_data" in st.session_state:
     if total_reviews > 0:
 
         chart = pd.DataFrame(
-
             {
                 "Reviews": [
                     positive,
@@ -1678,112 +1420,69 @@ if "product_data" in st.session_state:
                     negative
                 ]
             },
-
             index=[
                 "Positive",
                 "Neutral",
                 "Negative"
             ]
-
         )
 
-
-        st.bar_chart(
-            chart
-        )
-
+        st.bar_chart(chart)
 
     # =====================================================
-    # PURCHASE SCORE
+    # BUY SCORE
     # =====================================================
 
     if rating is not None:
-
-        rating_score = (
-            rating / 5
-        )
-
+        rating_score = rating / 5
     else:
-
         rating_score = 0
-
 
     sentiment_score = (
         average_sentiment + 1
     ) / 2
 
-
     if total_reviews >= 20:
-
         review_confidence = 1.0
 
     elif total_reviews >= 10:
-
         review_confidence = 0.8
 
     elif total_reviews >= 5:
-
         review_confidence = 0.6
 
     elif total_reviews > 0:
-
         review_confidence = 0.4
 
     else:
-
         review_confidence = 0
 
-
     if negative_percentage <= 10:
-
         risk_score = 1.0
 
     elif negative_percentage <= 20:
-
         risk_score = 0.8
 
     elif negative_percentage <= 35:
-
         risk_score = 0.5
 
     else:
-
         risk_score = 0.2
 
-
     buy_score = (
-
         0.40 * rating_score
-
         +
-
         0.30 * sentiment_score
-
         +
-
         0.15 * review_confidence
-
         +
-
         0.15 * risk_score
-
     )
 
-
-    buy_percentage = (
-        buy_score * 100
-    )
-
+    buy_percentage = buy_score * 100
 
     # =====================================================
     # PURCHASE DECISION
-    #
-    # IMPORTANT:
-    # Decision is based directly on PRODUCT RATING.
-    #
-    # 4.0+       = MUST BUY
-    # 3.0-3.9    = CAN BUY
-    # Below 3.0  = DON'T BUY
     # =====================================================
 
     st.markdown(
@@ -1791,37 +1490,29 @@ if "product_data" in st.session_state:
         unsafe_allow_html=True
     )
 
-
     b1, b2, b3 = st.columns(3)
 
-
     with b1:
-
         st.metric(
             "🛒 Buy Score",
             f"{buy_percentage:.1f}/100"
         )
 
-
     with b2:
-
         st.metric(
             "⭐ Rating Score",
             f"{rating_score * 100:.1f}%"
         )
 
-
     with b3:
-
         st.metric(
             "💬 Sentiment Score",
             f"{sentiment_score * 100:.1f}%"
         )
 
-
-    # =====================================================
-    # GREEN - MUST BUY
-    # =====================================================
+    # -----------------------------------------------------
+    # FINAL DECISION BASED ON RATING
+    # -----------------------------------------------------
 
     if rating is not None and rating >= 4.0:
 
@@ -1843,11 +1534,6 @@ if "product_data" in st.session_state:
             unsafe_allow_html=True
         )
 
-
-    # =====================================================
-    # YELLOW - CAN BUY
-    # =====================================================
-
     elif rating is not None and rating >= 3.0:
 
         st.markdown(
@@ -1867,11 +1553,6 @@ if "product_data" in st.session_state:
             """,
             unsafe_allow_html=True
         )
-
-
-    # =====================================================
-    # RED - DON'T BUY
-    # =====================================================
 
     elif rating is not None:
 
@@ -1893,7 +1574,6 @@ if "product_data" in st.session_state:
             unsafe_allow_html=True
         )
 
-
     else:
 
         st.warning(
@@ -1901,13 +1581,12 @@ if "product_data" in st.session_state:
             "so a purchase decision cannot be determined."
         )
 
-
     st.caption(
-        "Purchase decision is based on the product rating: "
-        "4.0+ = MUST BUY | 3.0–3.9 = CAN BUY | "
+        "Purchase decision: "
+        "4.0+ = MUST BUY | "
+        "3.0–3.9 = CAN BUY | "
         "Below 3.0 = DON'T BUY"
     )
-
 
     # =====================================================
     # SIMILAR PRODUCTS
@@ -1918,7 +1597,6 @@ if "product_data" in st.session_state:
         unsafe_allow_html=True
     )
 
-
     with st.spinner(
         "Finding similar products..."
     ):
@@ -1928,7 +1606,6 @@ if "product_data" in st.session_state:
                 product_data
             )
         )
-
 
     if not similar_products:
 
@@ -1942,37 +1619,31 @@ if "product_data" in st.session_state:
             "dynamically or block automated access."
         )
 
-
     else:
 
         display_rows = []
 
-
         for product in similar_products:
 
-            display_rows.append({
+            display_rows.append(
+                {
+                    "Product":
+                        product["Product"],
 
-                "Product":
-                    product[
-                        "Product"
-                    ],
+                    "Rating":
+                        f"{product['Rating']:.1f}/5",
 
-                "Rating":
-                    f"{product['Rating']:.1f}/5",
+                    "Similarity":
+                        f"{product['Similarity'] * 100:.1f}%",
 
-                "Similarity":
-                    f"{product['Similarity'] * 100:.1f}%",
-
-                "Recommendation Score":
-                    f"{product['Recommendation Score'] * 100:.1f}%"
-
-            })
-
+                    "Recommendation Score":
+                        f"{product['Recommendation Score'] * 100:.1f}%"
+                }
+            )
 
         result_df = pd.DataFrame(
             display_rows
         )
-
 
         st.dataframe(
             result_df,
@@ -1980,21 +1651,13 @@ if "product_data" in st.session_state:
             hide_index=True
         )
 
-
         # =================================================
         # BEST ALTERNATIVE
         # =================================================
 
         best = similar_products[0]
 
-        best_rating = best[
-            "Rating"
-        ]
-
-
-        # =================================================
-        # GREEN BEST ALTERNATIVE
-        # =================================================
+        best_rating = best["Rating"]
 
         if best_rating >= 4.0:
 
@@ -2020,11 +1683,6 @@ if "product_data" in st.session_state:
                 unsafe_allow_html=True
             )
 
-
-        # =================================================
-        # YELLOW BEST ALTERNATIVE
-        # =================================================
-
         elif best_rating >= 3.0:
 
             st.markdown(
@@ -2048,11 +1706,6 @@ if "product_data" in st.session_state:
                 """,
                 unsafe_allow_html=True
             )
-
-
-        # =================================================
-        # RED BEST ALTERNATIVE
-        # =================================================
 
         else:
 
@@ -2078,19 +1731,15 @@ if "product_data" in st.session_state:
                 unsafe_allow_html=True
             )
 
-
-        # =================================================
-        # COMPARE RATING
-        # =================================================
+        # -------------------------------------------------
+        # RATING COMPARISON
+        # -------------------------------------------------
 
         if rating is not None:
 
             difference = (
-                best_rating
-                -
-                rating
+                best_rating - rating
             )
-
 
             if difference > 0:
 
@@ -2107,55 +1756,38 @@ if "product_data" in st.session_state:
                     "rating as your selected product."
                 )
 
-
-        # =================================================
+        # -------------------------------------------------
         # RECOMMENDATION SCORE CHART
-        # =================================================
+        # -------------------------------------------------
 
         st.subheader(
             "📊 Recommendation Scores"
         )
 
-
         chart_data = pd.DataFrame(
-
             {
                 "Recommendation Score": [
-
-                    p[
-                        "Recommendation Score"
-                    ] * 100
-
+                    p["Recommendation Score"] * 100
                     for p in similar_products
-
                 ]
             },
-
             index=[
-
                 p["Product"][:45]
-
                 for p in similar_products
-
             ]
-
         )
 
-
-        st.bar_chart(
-            chart_data
-        )
-
+        st.bar_chart(chart_data)
 
         st.caption(
-            "Recommendation Score combines product-title "
-            "similarity and verified product rating."
+            "Recommendation Score = "
+            "55% product-title similarity + "
+            "45% verified product rating."
         )
 
-
-        # =================================================
+        # -------------------------------------------------
         # PRODUCT LINKS
-        # =================================================
+        # -------------------------------------------------
 
         with st.expander(
             "🔗 View Product Links"
@@ -2167,8 +1799,7 @@ if "product_data" in st.session_state:
             ):
 
                 st.markdown(
-                    f"**{index}. "
-                    f"{product['Product']}**"
+                    f"**{index}. {product['Product']}**"
                 )
 
                 st.write(
@@ -2179,46 +1810,58 @@ if "product_data" in st.session_state:
 
 
 # =========================================================
-# HOW IT WORKS
+# HOW THE SYSTEM WORKS
 # =========================================================
 
 st.markdown("---")
-
 
 st.markdown(
     '<div class="section-title">💡 How This System Works</div>',
     unsafe_allow_html=True
 )
 
-
 st.write(
     """
-    This system works completely from the pasted product URL.
+1. The user pastes an e-commerce product URL.
 
-    1. The product webpage is analyzed to extract the product
-       name, rating, brand and customer reviews.
+2. The system cleans the URL and removes unnecessary
+   tracking parameters when possible.
 
-    2. Customer reviews are analyzed using sentiment analysis.
+3. The webpage is fetched and parsed using Requests
+   and BeautifulSoup.
 
-    3. A Buy Score is calculated using rating, sentiment,
-       review confidence and negative-review risk.
+4. Product name, rating, brand and customer reviews
+   are extracted.
 
-    4. Similar or related products are searched from the
-       product webpage and web search.
+5. Customer reviews are analyzed using VADER
+   sentiment analysis.
 
-    5. Product ratings are verified when possible.
+6. Positive, neutral and negative review percentages
+   are calculated.
 
-    6. Products with the same or higher rating are prioritized.
+7. A Buy Score is calculated using rating, sentiment,
+   review confidence and negative-review risk.
 
-    7. The purchase decision is classified using the product
-       rating:
+8. The final purchase decision is based directly
+   on the product rating.
 
-       • 4.0–5.0 → MUST BUY
-       • 3.0–3.9 → CAN BUY
-       • Below 3.0 → DON'T BUY
+9. Similar products are collected from the product
+   page and web search.
 
-    No CSV dataset is required.
-    """
+10. Candidate product ratings are verified.
+
+11. Products with ratings lower than the original
+    product are removed.
+
+12. Remaining products are ranked using:
+
+    Recommendation Score =
+    55% Similarity + 45% Rating
+
+13. The best alternative is displayed to the user.
+
+No CSV dataset is required.
+"""
 )
 
 
